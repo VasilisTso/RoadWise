@@ -1,0 +1,308 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body{
+    font-family: 'Inter', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #e5e7eb;
+    color: #141619;
+    line-height: 1.6;
+    overflow-x: hidden;
+}
+
+.header{
+    background-color: #1f2937;
+    color: white;
+    text-align: center;
+    padding: 2rem 1rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.header h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  letter-spacing: 1px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.header h3 {
+  font-size: 1.125rem;
+  font-weight: 300;
+}
+
+.header img {
+  width: 50px;
+  height: 50px;
+  margin-left: 10px;
+}
+
+.footer {
+  background-color: #1f2937;
+  color: #f3f4f6;
+  padding: 1.5rem 0;
+  margin-top: 2rem;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.footer a {
+  color: #60a5fa;
+  text-decoration: none;
+}
+
+.footer a:hover {
+  text-decoration: underline;
+}
+
+.footer-content {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.social-icons {
+  margin-top: 0.75rem;
+}
+
+.social-icons a {
+  margin: 0 0.5rem;
+  color: #f3f4f6;
+  font-size: 1.25rem;
+  transition: color 0.2s ease-in-out;
+}
+
+.social-icons a:hover {
+  color: #60a5fa;
+  transform: scale(1.1);
+}
+
+.hero {
+  background: linear-gradient(to bottom, #f9fafb, #e5e7eb);
+  padding: 3rem 1.5rem;
+  text-align: center;
+  color: #1f2937;
+}
+
+.hero h2 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  line-height: 1.4;
+}
+
+.hero p {
+  font-size: 1rem;
+  line-height: 1.6;
+  max-width: 800px;
+  margin: 0.5rem auto;
+}
+
+.hero .instructions-title {
+  font-size: 1.25rem;
+  font-weight: 500;
+  margin-top: 2rem;
+  margin-bottom: 0.5rem;
+  color: #111827;
+}
+
+.hero .instructions-text {
+  font-size: 1rem;
+  color: #374151;
+}
+
+.autocomplete-list {
+  position: absolute;
+  background: white;
+  border: 1px solid #ccc;
+  list-style: none;
+  margin-top: 0;
+  padding-left: 0;
+  width: 100%;
+  z-index: 1000;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.autocomplete-list li {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.autocomplete-list li:hover {
+  background-color: #eee;
+}
+
+
+.container, .input-section, .trip-info, 
+.fuel-cost-section, .tolls-used, .toll-info, .route-box{
+    max-width: 960px;
+    margin: 1rem auto;
+    padding: 1rem;
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 0 10px hsla(235, 86%, 14%, 0.507);
+}
+
+.input-section input, .input-section select,
+.fuel-cost-section input, .fuel-cost-section select{
+    padding: 0.5rem;
+    margin: 0.5rem 0;
+    width: calc(100% -1rem);
+    max-width: 300px;
+    display: block;
+    border: 2px solid #ccc;
+    border-radius: 7px;
+}
+
+.input-section button{
+    padding: 0.5rem 1rem;
+    background-color: #060d5a;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease-in-out;
+}
+
+.input-section button:hover{
+    background-color: #081174;
+}
+
+.trip-info p, .fuel-cost-display p{
+    margin: 0.5rem 0;
+}
+
+.fuel-input{
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.5rem 0;
+}
+
+.fuel-input input{
+    width: 80px;
+    text-align: left;
+}
+
+.fuel-input button{
+    padding: 0.3rem 0.6rem;
+    font-size: 1rem;
+}
+
+.route-summary{
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    background-color: #B3B4BD;
+    border: none;
+    box-shadow: none;
+}
+
+.route-box{
+    flex: 1;
+    min-width: 280px;
+    padding: 1rem;
+    border: 2px solid #ccc;
+    border-radius: 7px;
+    box-shadow: 0 0 10px hsla(235, 86%, 14%, 0.507);
+    background-color: #fafafa;
+}
+
+.mapRef{
+    height: 400px;
+    margin: 1rem auto;
+    max-width: 960px;
+    border: 2px solid #ccc;
+    border-radius: 7px;
+    box-shadow: 0 0 10px hsla(235, 86%, 14%, 0.507);
+    overflow: hidden;
+}
+
+.toll-info ul{
+    list-style: disc;
+    padding-left: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .header h1 {
+    font-size: 1.8rem;
+  }
+
+  .header h3 {
+    font-size: 1rem;
+  }
+
+  .hero h2 {
+    font-size: 1.3rem;
+  }
+
+  .hero p {
+    font-size: 0.95rem;
+  }
+
+  .container,
+  .input-section,
+  .trip-info,
+  .fuel-cost-section,
+  .tolls-used,
+  .toll-info,
+  .route-box {
+    margin: 0.5rem;
+    padding: 1rem;
+  }
+
+  .input-section input,
+  .input-section select,
+  .fuel-cost-section input,
+  .fuel-cost-section select {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .fuel-input {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .route-summary {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .mapRef {
+    height: 300px;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .footer {
+    font-size: 0.8rem;
+    padding: 1rem;
+  }
+
+  .social-icons a {
+    font-size: 1.1rem;
+    margin: 0 0.35rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero {
+    padding: 2rem 1rem;
+  }
+
+  .header {
+    padding: 1.5rem 0.75rem;
+  }
+
+  .footer-content {
+    padding: 0 0.5rem;
+  }
+}
