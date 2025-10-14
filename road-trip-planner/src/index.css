@@ -123,6 +123,13 @@ body{
 
 .autocomplete-list {
   position: absolute;
+
+  top: 100%; /* directly below input */
+  left: 0;
+  right: 0;
+  max-height: 200px; /* prevents dropdown from growing too tall */
+  overflow-y: auto;
+
   background: white;
   border: 1px solid #ccc;
   list-style: none;
@@ -154,6 +161,10 @@ body{
     box-shadow: 0 0 10px hsla(235, 86%, 14%, 0.507);
 }
 
+.input-section {
+  overflow: hidden;
+}
+
 .input-section input, .input-section select,
 .fuel-cost-section input, .fuel-cost-section select{
     padding: 0.5rem;
@@ -163,6 +174,12 @@ body{
     display: block;
     border: 2px solid #ccc;
     border-radius: 7px;
+}
+
+
+.location-inputs {
+  position: relative; /* ensures dropdown stays within this box */
+  width: 100%;
 }
 
 .input-section button{
