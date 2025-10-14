@@ -9,7 +9,7 @@ import { faEnvelope } from "@fortawesome/free-solid-svg-icons";
 
 const Footer = () => {
   return (
-    <footer className="footer">
+    <footer className="footer backdrop-blur-md bg-[#1f2937]/80">
       <div className="footer-content">
         <p>&copy; {new Date().getFullYear()} Road Wise. All rights reserved.</p>
         <p>
