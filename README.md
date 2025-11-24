@@ -1,13 +1,37 @@
-# RoadWise
+# RoadWise Route Planner Web App
 
-This is a web application that helps users plan road trips by displaying key trip details such as distance, duration, fuel costs (based on vehicle type), and toll expenses. Integrated the OpenRouteService API for route mapping and visualization, and utilized a JSON dataset to manage toll pricing and locations.
+A modern web application for planning car or motorcycle trips in Greece. It calculates routes, estimates fuel costs, identifies tolls along the way, and provides per-passenger cost. Built with React, Leaflet, and OpenRouteService API.
 
-Made using React & Vite.
+## Features
+
+- Dynamic Route Planning: Enter start and end locations, choose route options (with or without tolls).
+
+- Autocomplete Locations: Location suggestions powered by OpenRouteService.
+
+- Toll Detection: Automatically highlights tolls along the route.
+
+- Fuel Cost & Consumption: Input fuel price and consumption to calculate total cost.
+
+- Per-Passenger Cost: Split total cost by number of passengers.
+
+- Interactive Map: Displays the calculated route with markers for tolls.
+
+- Responsive Design: Works on desktop and mobile with a clean modern UI.
+
+- Loading Feedback: Visual indicator while routes are being fetched.
+
+## Tech Stack
+
+- React 18 – UI framework
+
+- Tailwind CSS – Utility-first styling
+
+- Leaflet – Interactive maps
+
+- OpenRouteService API – Geocoding, routing, and autocomplete
 
 
 # Preview
 
-<img width="1903" height="886" alt="Screenshot 2025-10-14 151001" src="https://github.com/user-attachments/assets/fb794c80-efc3-41ff-ae45-019a9e865b5c" />
-<img width="1899" height="907" alt="Screenshot 2025-10-14 151025" src="https://github.com/user-attachments/assets/040a8a65-ad59-4a23-bc07-51f219b50e29" />
-<img width="1902" height="907" alt="Screenshot 2025-10-14 151113" src="https://github.com/user-attachments/assets/2f02ec1b-5a47-45a8-b8ac-47b78ff59947" />
-<img width="1900" height="909" alt="Screenshot 2025-10-14 151131" src="https://github.com/user-attachments/assets/09b63f61-af5d-47de-b4c0-5c76234034b4" />
+<img width="1902" height="785" alt="Screenshot 2025-11-24 184615" src="https://github.com/user-attachments/assets/d00404bd-ffa8-413b-9214-195a135ac7db" />
+<img width="1899" height="910" alt="Screenshot 2025-11-24 184632" src="https://github.com/user-attachments/assets/2dc7f710-81ca-4800-ac07-ee62fa81de52" />
