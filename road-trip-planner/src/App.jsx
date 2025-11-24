@@ -18,12 +18,12 @@ function App() {
   };
 
   return (
-    <div className="bg-gradient-to-br from-[#e5e7eb] via-[#1f2937]/50 to-[#e5e7eb]">
+    <div className="bg-gradient-to-br from-indigo-50 via-indigo-100 to-indigo-50">
       <Header/>
 
       <Hero/>
 
-      {/*
+      {/* RouteSelector and Map merged into Map2
       <RouteSelector selectedRoute={selectedRoute} onChange={handleRouteChange} />
       <Map selectedRoute={selectedRoute} tolls={tollData} />
       */}
@@ -31,11 +31,14 @@ function App() {
       <Map2 selectedRoute={selectedRoute} 
         onChange={handleRouteChange} 
         onTollUpdate={(tolls) => setTolls(tolls)} 
-        onSummaryUpdate={setSummary}/>
+        onSummaryUpdate={setSummary}
+      />
 
-      <TollList tolls={tolls} />
+      <div className='max-w-6xl mx-auto flex flex-col sm:flex-row px-4 items-start gap-6 mt-6'>
+        <TollList tolls={tolls} />
 
-      <RouteSummary summary={summary} />
+        <RouteSummary summary={summary} />
+      </div>
 
       <Footer/>
 

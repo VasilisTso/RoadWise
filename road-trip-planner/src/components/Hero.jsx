@@ -1,15 +1,26 @@
 import React from 'react'
+import { motion } from "framer-motion"; // eslint-disable-line
 
 const Hero = () => {
   return (
-    <div className='hero'>
-        <h2>Find distance-route between cities, areas on the map. Calculate travel costs (fuel, tolls).</h2>
-        <p>Search for a route by entering a starting and destination area. Additionally, get travel directions for your route, as well as fuel cost estimates, toll calculations, and available alternative routes.</p>
-    
-        <p className="instructions-title">Instructions</p>
-        <p className="instructions-text">Fill in the text fields with your starting point and destination, as well as your gas price, fuel consumption and passengers, and choose whether you want a route with or without tolls.</p>
-    </div>
+    <motion.section className='text-center py-16 px-4 max-w-4xl mx-auto'
+      initial={{ opacity: 0 }} 
+      animate={{ opacity: 1 }}
+    >
+      <h2 className='text-2xl md:text-3xl font-semibold text-gray-800 leading-tight'>
+        Find distance & routes between cities, and calculate full trip costs.
+      </h2>
 
+      <p className='text-gray-700 mt-4 text-lg'>
+        Enter your start & destination and get fuel cost, toll expenses, directions, and alternative routes.
+      </p>
+
+      <h3 className="text-xl font-semibold mt-10 text-gray-900">Instructions</h3>
+
+      <p className="text-gray-700 text-lg mt-2">
+        Fill in the fields, set your fuel price, consumption, passengers, and choose a route type.
+      </p>
+    </motion.section>
   )
 }
 
