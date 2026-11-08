@@ -51,7 +51,12 @@ export async function geocode(place, signal) {
 }
 
 // Returns the first GeoJSON feature of the route
-export async function fetchRoute(startCoords, endCoords, { avoidTolls = false, signal } = {}) {
+// withTollInfo asks ORS which stretches of the route are toll roads (extras.tollways)
+export async function fetchRoute(
+  startCoords,
+  endCoords,
+  { avoidTolls = false, withTollInfo = false, signal } = {}
+) {
   const data = await request(
     `${BASE}/v2/directions/driving-car/geojson`,
     {
@@ -62,6 +67,7 @@ export async function fetchRoute(startCoords, endCoords, { avoidTolls = false, s
         coordinates: [startCoords, endCoords], // ORS expects [lng, lat]
         instructions: false,
         options: avoidTolls ? { avoid_features: ["tollways"] } : {},
+        ...(withTollInfo ? { extra_info: ["tollways"] } : {}),
       }),
     },
     "Couldn't reach the routing service. Check your connection and try again."

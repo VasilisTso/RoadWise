@@ -2,9 +2,9 @@ import React from "react";
 import { motion } from "framer-motion"; // eslint-disable-line
 import { formatDuration, formatEuro, formatKm } from "../utils/format";
 
-// `result` is the object produced by useRoute (numbers, not preformatted strings)
-function RouteSummary({ result }) {
-  if (!result) return null;
+// summary = { start, end, routeLabel, roundTrip, + the numbers from calculateTrip }
+function RouteSummary({ summary }) {
+  if (!summary) return null;
 
   return (
     <motion.div
@@ -15,14 +15,15 @@ function RouteSummary({ result }) {
       <h2 className="text-xl font-semibold mb-3">Route Summary</h2>
 
       <div className="space-y-1 text-gray-700">
-        <p><strong>From:</strong> {result.start}</p>
-        <p><strong>To:</strong> {result.end}</p>
-        <p><strong>Distance:</strong> {formatKm(result.distanceKm)}</p>
-        <p><strong>Duration:</strong> {formatDuration(result.durationMin)}</p>
-        <p><strong>Fuel Cost:</strong> {formatEuro(result.fuelCost)}</p>
-        <p><strong>Toll Cost:</strong> {formatEuro(result.tollCost)}</p>
-        <p><strong>Total Cost:</strong> {formatEuro(result.totalCost)}</p>
-        <p><strong>Per Passenger:</strong> {formatEuro(result.perPassenger)}</p>
+        <p><strong>From:</strong> {summary.start}</p>
+        <p><strong>To:</strong> {summary.end}</p>
+        <p><strong>Route:</strong> {summary.routeLabel}{summary.roundTrip ? " (round trip)" : ""}</p>
+        <p><strong>Distance:</strong> {formatKm(summary.distanceKm)}</p>
+        <p><strong>Duration:</strong> {formatDuration(summary.durationMin)}</p>
+        <p><strong>Fuel Cost:</strong> {formatEuro(summary.fuelCost)}</p>
+        <p><strong>Toll Cost:</strong> {formatEuro(summary.tollCost)}</p>
+        <p><strong>Total Cost:</strong> {formatEuro(summary.totalCost)}</p>
+        <p><strong>Per Passenger:</strong> {formatEuro(summary.perPassenger)}</p>
       </div>
     </motion.div>
   );

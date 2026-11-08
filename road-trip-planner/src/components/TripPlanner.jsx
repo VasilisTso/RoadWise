@@ -3,26 +3,16 @@ import { motion } from "framer-motion"; // eslint-disable-line
 import LocationField from "./LocationField";
 import TripSettings from "./TripSettings";
 
-// The input form. It owns form state only; searching, loading and errors
-// belong to useRoute and arrive as props.
-function TripPlanner({ onSearch, loading, error, onDismissError }) {
+// The input form. Locations are local state; trip settings are owned by App
+// (useSettings) so results can recalculate live and settings persist.
+function TripPlanner({ settings, onSettingChange, onSearch, loading, error, onDismissError }) {
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   // Exact [lng, lat] from a selected suggestion. Cleared when the text is edited.
   const [startCoords, setStartCoords] = useState(null);
   const [endCoords, setEndCoords] = useState(null);
 
-  const [settings, setSettings] = useState({
-    vehicle: "car",
-    fuelPrice: 1.8,
-    consumption: 6.5,
-    passengers: 1,
-    avoidTolls: false,
-  });
-  const updateSetting = (key, value) => setSettings((s) => ({ ...s, [key]: value }));
-
-  const handleSearch = () =>
-    onSearch({ start, end, startCoords, endCoords, ...settings });
+  const handleSearch = () => onSearch({ start, end, startCoords, endCoords });
 
   return (
     <div className="w-full flex flex-col items-center">
@@ -71,7 +61,7 @@ function TripPlanner({ onSearch, loading, error, onDismissError }) {
           <select
             id="vehicle"
             value={settings.vehicle}
-            onChange={(e) => updateSetting("vehicle", e.target.value)}
+            onChange={(e) => onSettingChange("vehicle", e.target.value)}
             className="w-full mt-1 p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none"
           >
             <option value="car">Car</option>
@@ -79,7 +69,7 @@ function TripPlanner({ onSearch, loading, error, onDismissError }) {
           </select>
         </motion.div>
 
-        <TripSettings settings={settings} onChange={updateSetting} />
+        <TripSettings settings={settings} onChange={onSettingChange} />
       </div>
 
       <div className="w-full flex justify-center mt-6">
