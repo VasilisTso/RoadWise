@@ -5,8 +5,9 @@ const inputClass =
   "w-full mt-1 mb-4 p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none";
 
 // Controlled: `settings` in, `onChange(key, value)` out.
+// (The toll / toll-free choice now lives in the route comparison cards.)
 function TripSettings({ settings, onChange }) {
-  const { fuelPrice, consumption, passengers, avoidTolls } = settings;
+  const { fuelPrice, consumption, passengers, roundTrip } = settings;
 
   return (
     <motion.div
@@ -44,7 +45,7 @@ function TripSettings({ settings, onChange }) {
         placeholder="6.5"
       />
 
-      <div className="flex gap-10">
+      <div className="flex gap-6">
         <div className="flex flex-col w-full">
           <label htmlFor="passengers" className="block text-gray-700 font-medium">
             Passengers
@@ -61,18 +62,20 @@ function TripSettings({ settings, onChange }) {
         </div>
 
         <div className="flex flex-col w-full">
-          <label htmlFor="route-option" className="block text-gray-700 font-medium">
-            Route Option
-          </label>
-          <select
-            id="route-option"
-            value={avoidTolls ? "noTolls" : "tolls"}
-            onChange={(e) => onChange("avoidTolls", e.target.value === "noTolls")}
-            className={inputClass}
+          <span className="block text-gray-700 font-medium">Trip Type</span>
+          <label
+            htmlFor="round-trip"
+            className="mt-1 mb-4 p-3 border border-gray-300 rounded-xl flex items-center gap-3 cursor-pointer focus-within:ring-2 focus-within:ring-blue-400"
           >
-            <option value="tolls">With Tolls</option>
-            <option value="noTolls">Without Tolls</option>
-          </select>
+            <input
+              id="round-trip"
+              type="checkbox"
+              checked={roundTrip}
+              onChange={(e) => onChange("roundTrip", e.target.checked)}
+              className="h-5 w-5 accent-blue-600"
+            />
+            Round trip
+          </label>
         </div>
       </div>
     </motion.div>

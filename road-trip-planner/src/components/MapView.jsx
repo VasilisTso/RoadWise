@@ -13,12 +13,22 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow,
 });
 
-// Purely presentational: draws whatever `route` (the useRoute result) contains.
-function MapView({ route }) {
+// Presentational. Props:
+//  routes:        [{ id, coords, color }]  (all routes to draw)
+//  selectedId:    which route is highlighted
+//  tolls:         tolls of the selected route (shown as markers)
+//  onSelectRoute: called when a route line is clicked
+function MapView({ routes, selectedId, tolls, onSelectRoute }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
+  const linesRef = useRef({});
+  const onSelectRef = useRef(onSelectRoute);
 
-  // Create the map once (and clean up on unmount / StrictMode re-mount)
+  useEffect(() => {
+    onSelectRef.current = onSelectRoute;
+  });
+
+  // Create the map once (cleaned up on unmount / StrictMode re-mount)
   useEffect(() => {
     const map = L.map(containerRef.current).setView([39.0742, 21.8243], 7);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -33,37 +43,58 @@ function MapView({ route }) {
     };
   }, []);
 
-  // Draw the route + toll markers; the cleanup removes them when `route` changes
+  // Draw all routes and zoom to fit. Runs only when a new search result arrives,
+  // so picking a different route doesn't re-zoom the map.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !route) return;
+    if (!map || !routes?.length) return;
 
-    const line = L.polyline(route.coords, {
-      color: route.avoidTolls ? "orange" : "blue",
-      weight: 5,
-    }).addTo(map);
-    map.fitBounds(line.getBounds());
+    const lines = {};
+    routes.forEach((r) => {
+      const line = L.polyline(r.coords, { color: r.color, weight: 5 }).addTo(map);
+      line.on("click", () => onSelectRef.current?.(r.id));
+      lines[r.id] = line;
+    });
+    linesRef.current = lines;
+    map.fitBounds(L.featureGroup(Object.values(lines)).getBounds());
 
-    const markers = route.tolls.map((toll) =>
+    return () => {
+      Object.values(lines).forEach((l) => l.remove());
+      linesRef.current = {};
+    };
+  }, [routes]);
+
+  // Highlight the selected route, dim the others
+  useEffect(() => {
+    Object.entries(linesRef.current).forEach(([id, line]) => {
+      if (id === selectedId) {
+        line.setStyle({ weight: 6, opacity: 1, dashArray: null });
+        line.bringToFront();
+      } else {
+        line.setStyle({ weight: 4, opacity: 0.55, dashArray: "8 8" });
+      }
+    });
+  }, [routes, selectedId]);
+
+  // Toll markers for the selected route
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !tolls?.length) return;
+
+    const markers = tolls.map((toll, i) =>
       L.marker([toll.lat, toll.lng])
         .bindPopup(
-          `<strong>${escapeHtml(toll.name)}</strong><br/>Car: ${formatEuro(toll.car)}<br/>Bike: ${formatEuro(toll.bike)}`
+          `<strong>${i + 1}. ${escapeHtml(toll.name)}</strong><br/>Car: ${formatEuro(toll.car)}<br/>Bike: ${formatEuro(toll.bike)}`
         )
         .addTo(map)
     );
 
-    return () => {
-      line.remove();
-      markers.forEach((m) => m.remove());
-    };
-  }, [route]);
+    return () => markers.forEach((m) => m.remove());
+  }, [tolls]);
 
   return (
     <div className="w-full max-w-6xl mx-auto px-4 mt-6">
-      <div
-        ref={containerRef}
-        className="w-full h-[600px] rounded-xl overflow-hidden shadow-lg"
-      />
+      <div ref={containerRef} className="w-full h-[600px] rounded-xl overflow-hidden shadow-lg" />
     </div>
   );
 }
