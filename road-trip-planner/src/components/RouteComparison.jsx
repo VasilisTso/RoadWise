@@ -56,7 +56,7 @@ function describeDifference(fast, free) {
 }
 
 // trips: { fast, free } with costs already calculated for the current settings
-function RouteComparison({ trips, selectedId, onSelect, freeError }) {
+function RouteComparison({ trips, selectedId, onSelect, freeError, warning }) {
   const { fast, free } = trips;
 
   return (
@@ -70,11 +70,19 @@ function RouteComparison({ trips, selectedId, onSelect, freeError }) {
         {free && <RouteCard id="free" trip={free} selected={selectedId === "free"} onSelect={onSelect} />}
       </div>
 
+      {warning && (
+        <p role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {warning}
+        </p>
+      )}
+
       <p className="mt-3 text-sm text-gray-700">
         {free
           ? describeDifference(fast, free)
           : freeError
           ? `Toll-free option unavailable: ${freeError}`
+          : warning
+          ? ""
           : "There are no tolls on the fastest route."}
       </p>
     </motion.div>

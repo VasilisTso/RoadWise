@@ -10,22 +10,51 @@ export function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// A toll counts as "on the route" if it is within this distance of the road line.
-export const TOLL_MATCH_TOLERANCE_KM = 1;
+// A toll counts as "on the route" if it is within this distance of the toll road.
+// 3 km tolerates imprecise plaza coordinates (e.g. a town centre instead of the
+// plaza itself). Once tolls.json holds exact plaza positions this can go back to ~1.
+export const TOLL_MATCH_TOLERANCE_KM = 3;
+const SEARCH_LIMIT_KM = 25; // beyond this we don't bother measuring
 
 /**
- * Finds which tolls lie on a route.
- *
- * Instead of checking route *points* (which misses plazas between points and
- * catches parallel roads at 5 km), this measures the distance from each toll to
- * the nearest route *segment*, and records how far along the route it sits so
- * the tolls can be listed in driving order.
- *
- * routeCoords: [[lat, lng], ...]  ->  returns tolls (+ distanceAlongKm, offRouteKm)
- * Uses a local flat projection (accurate to a few % over Greece-sized areas,
- * which is plenty for a ~1 km tolerance). distanceAlongKm is approximate.
+ * OpenRouteService `extras.tollways.values` is a list of [fromIdx, toIdx, flag]
+ * over route vertices (flag 1 = toll road). Converts it to one boolean per
+ * segment (segment i joins vertex i and i+1). Returns null if nothing is tolled.
  */
-export function matchTollsToRoute(tolls, routeCoords, toleranceKm = TOLL_MATCH_TOLERANCE_KM) {
+export function tolledSegmentsFromExtras(values, vertexCount) {
+  if (!Array.isArray(values) || vertexCount < 2) return null;
+  const flags = new Array(vertexCount - 1).fill(false);
+  let any = false;
+  for (const [from, to, flag] of values) {
+    if (flag !== 1) continue;
+    for (let i = from; i < to && i < flags.length; i++) {
+      flags[i] = true;
+      any = true;
+    }
+  }
+  return any ? flags : null;
+}
+
+// Length (km) of the tolled part of the route
+export function tolledDistanceKm(routeCoords, tolledSegments) {
+  if (!tolledSegments) return 0;
+  let km = 0;
+  for (let i = 0; i < tolledSegments.length; i++) {
+    if (tolledSegments[i]) {
+      km += getDistanceFromLatLonInKm(...routeCoords[i], ...routeCoords[i + 1]);
+    }
+  }
+  return km;
+}
+
+/**
+ * For every toll: distance (km) to the nearest route segment and how far along
+ * the route that point is. If `tolledSegments` is given, only toll-road segments
+ * are considered, so a plaza next to a *free* parallel road won't match.
+ * routeCoords: [[lat, lng], ...]. Uses a local flat projection (fine over Greece).
+ * Returns [{ ...toll, offRouteKm, distanceAlongKm }]  (offRouteKm = Infinity if far/none)
+ */
+export function measureTolls(tolls, routeCoords, { tolledSegments = null } = {}) {
   if (!routeCoords || routeCoords.length < 2) return [];
 
   const meanLat = routeCoords.reduce((sum, [lat]) => sum + lat, 0) / routeCoords.length;
@@ -33,25 +62,24 @@ export function matchTollsToRoute(tolls, routeCoords, toleranceKm = TOLL_MATCH_T
   const project = (lat, lng) => [lng * DEG * R * cosLat, lat * DEG * R];
 
   const pts = routeCoords.map(([lat, lng]) => project(lat, lng));
-  const cum = [0]; // cumulative km along the route at each point
+  const cum = [0]; // cumulative km along the whole route
   for (let i = 1; i < pts.length; i++) {
     cum[i] = cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
   }
 
-  const matches = [];
-  for (const toll of tolls) {
+  return tolls.map((toll) => {
     const [px, py] = project(toll.lat, toll.lng);
     let bestDist = Infinity;
     let bestAlong = 0;
 
     for (let i = 0; i < pts.length - 1; i++) {
+      if (tolledSegments && !tolledSegments[i]) continue;
       const [ax, ay] = pts[i];
       const [bx, by] = pts[i + 1];
 
-      // cheap bounding-box skip
       if (
-        px < Math.min(ax, bx) - toleranceKm || px > Math.max(ax, bx) + toleranceKm ||
-        py < Math.min(ay, by) - toleranceKm || py > Math.max(ay, by) + toleranceKm
+        px < Math.min(ax, bx) - SEARCH_LIMIT_KM || px > Math.max(ax, bx) + SEARCH_LIMIT_KM ||
+        py < Math.min(ay, by) - SEARCH_LIMIT_KM || py > Math.max(ay, by) + SEARCH_LIMIT_KM
       ) continue;
 
       const dx = bx - ax;
@@ -65,15 +93,20 @@ export function matchTollsToRoute(tolls, routeCoords, toleranceKm = TOLL_MATCH_T
         bestAlong = cum[i] + t * Math.sqrt(len2);
       }
     }
+    return { ...toll, offRouteKm: bestDist, distanceAlongKm: bestAlong };
+  });
+}
 
-    if (bestDist <= toleranceKm) {
-      matches.push({ ...toll, distanceAlongKm: bestAlong, offRouteKm: bestDist });
-    }
-  }
+// Tolls on the route, in driving order, duplicates merged.
+export function matchTollsToRoute(
+  tolls,
+  routeCoords,
+  { toleranceKm = TOLL_MATCH_TOLERANCE_KM, tolledSegments = null } = {}
+) {
+  const matches = measureTolls(tolls, routeCoords, { tolledSegments })
+    .filter((t) => t.offRouteKm <= toleranceKm)
+    .sort((a, b) => a.distanceAlongKm - b.distanceAlongKm);
 
-  matches.sort((a, b) => a.distanceAlongKm - b.distanceAlongKm);
-
-  // Drop duplicate entries for the same plaza (same name, essentially same spot)
   return matches.filter(
     (m, i) => !(i > 0 && m.name === matches[i - 1].name && m.distanceAlongKm - matches[i - 1].distanceAlongKm < 1)
   );

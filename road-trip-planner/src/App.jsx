@@ -56,6 +56,7 @@ function App() {
           selectedId={activeId}
           onSelect={setSelectedId}
           freeError={routes.freeError}
+          warning={routes.fast.tollWarning}
         />
       )}
 
