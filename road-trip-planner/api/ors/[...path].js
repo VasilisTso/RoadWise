@@ -36,6 +36,10 @@ export default async function handler(req, res) {
       options: b.options?.avoid_features?.includes("tollways")
         ? { avoid_features: ["tollways"] }
         : {},
+      // the only extra_info we allow
+      ...(Array.isArray(b.extra_info) && b.extra_info.includes("tollways")
+        ? { extra_info: ["tollways"] }
+        : {}),
     });
   }
 
