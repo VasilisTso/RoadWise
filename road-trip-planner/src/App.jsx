@@ -1,15 +1,156 @@
-import React from 'react';
-import Header from './components/Header';
-import Hero from './components/Hero';
-import TripPlanner from './components/TripPlanner';
-import MapView from './components/MapView';
-import TollList from './components/TollList';
-import RouteSummary from './components/RouteSummary';
-import Footer from './components/Footer';
-import { useRoute } from './hooks/useRoute';
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import Header from "./components/Header";
+import Hero from "./components/Hero";
+import TripPlanner from "./components/TripPlanner";
+import MapView from "./components/MapView";
+import TollList from "./components/TollList";
+import RouteSummary from "./components/RouteSummary";
+import Footer from "./components/Footer";
+import { useRoute } from "./hooks/useRoute";
+import { calculateCosts } from "./utils/costs";
+
+function parseCoordParam(str) {
+  if (!str) return null;
+  const parts = str.split(",").map(Number);
+  if (parts.length === 2 && parts.every((n) => Number.isFinite(n))) {
+    return parts;
+  }
+  return null;
+}
+
+function getInitialUrlState() {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    start: params.get("from") || "",
+    end: params.get("to") || "",
+    startCoords: parseCoordParam(params.get("sc")),
+    endCoords: parseCoordParam(params.get("ec")),
+    settings: {
+      vehicle: params.get("veh") === "bike" ? "bike" : "car",
+      fuelPrice: Number(params.get("fp")) > 0 ? Number(params.get("fp")) : 1.8,
+      consumption: Number(params.get("cons")) > 0 ? Number(params.get("cons")) : 6.5,
+      passengers: Math.max(1, parseInt(params.get("pax") || "1", 10) || 1),
+      avoidTolls: params.get("avoid") === "1",
+      roundTrip: params.get("rt") === "1",
+    },
+  };
+}
 
 function App() {
-  const { result, loading, error, search, clearError } = useRoute();
+  const initial = useMemo(() => getInitialUrlState(), []);
+
+  const [start, setStart] = useState(initial.start);
+  const [end, setEnd] = useState(initial.end);
+  const [startCoords, setStartCoords] = useState(initial.startCoords);
+  const [endCoords, setEndCoords] = useState(initial.endCoords);
+  const [settings, setSettings] = useState(initial.settings);
+  const [focusedToll, setFocusedToll] = useState(null);
+
+  const { routeData, loading, error, search, clearError } = useRoute();
+  const didAutoSearch = useRef(false);
+
+  const updateSetting = (key, value) => {
+    setSettings((prev) => ({ ...prev, [key]: value }));
+  };
+
+  // If the user opened a shared link with ?from=...&to=..., automatically fetch the route
+  useEffect(() => {
+    if (!didAutoSearch.current && initial.start.trim() && initial.end.trim()) {
+      didAutoSearch.current = true;
+      search({
+        start: initial.start,
+        end: initial.end,
+        startCoords: initial.startCoords,
+        endCoords: initial.endCoords,
+      });
+    }
+  }, [initial, search]);
+
+  // Keep the URL query string in sync with active route & settings so links are always shareable
+  useEffect(() => {
+    if (!routeData) return;
+    const params = new URLSearchParams();
+    params.set("from", routeData.start);
+    params.set("to", routeData.end);
+    if (routeData.startCoords) {
+      params.set("sc", routeData.startCoords.map((n) => n.toFixed(5)).join(","));
+    }
+    if (routeData.endCoords) {
+      params.set("ec", routeData.endCoords.map((n) => n.toFixed(5)).join(","));
+    }
+    params.set("veh", settings.vehicle);
+    params.set("fp", String(settings.fuelPrice));
+    params.set("cons", String(settings.consumption));
+    params.set("pax", String(settings.passengers));
+    if (settings.avoidTolls) params.set("avoid", "1");
+    if (settings.roundTrip) params.set("rt", "1");
+
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.replaceState(null, "", newUrl);
+  }, [routeData, settings]);
+
+  // Instant reactive cost calculation (zero API calls when settings change!)
+  const comparison = useMemo(() => {
+    if (!routeData) return null;
+
+    const buildOption = (branch, isAvoidTolls) => {
+      if (!branch) return null;
+      const costs = calculateCosts({
+        distanceKm: branch.distanceKm,
+        durationMin: branch.durationMin,
+        consumption: settings.consumption,
+        fuelPrice: settings.fuelPrice,
+        tolls: branch.tolls,
+        vehicle: settings.vehicle,
+        passengers: settings.passengers,
+        roundTrip: settings.roundTrip,
+      });
+      return {
+        start: routeData.start,
+        end: routeData.end,
+        startCoords: routeData.startCoords,
+        endCoords: routeData.endCoords,
+        avoidTolls: isAvoidTolls,
+        vehicle: settings.vehicle,
+        passengers: settings.passengers,
+        roundTrip: settings.roundTrip,
+        coords: branch.coords,
+        tolls: branch.tolls,
+        baseDistanceKm: branch.distanceKm,
+        baseDurationMin: branch.durationMin,
+        distanceKm: costs.effectiveDistanceKm,
+        durationMin: costs.effectiveDurationMin,
+        ...costs,
+      };
+    };
+
+    const withTolls = buildOption(routeData.withTolls, false);
+    const withoutTolls = buildOption(routeData.withoutTolls, true);
+    const active = settings.avoidTolls ? withoutTolls : withTolls;
+    const alternative = settings.avoidTolls ? withTolls : withoutTolls;
+
+    return { withTolls, withoutTolls, active, alternative };
+  }, [routeData, settings]);
+
+  const activeResult = comparison?.active ?? null;
+
+  const handleSearch = async () => {
+    setFocusedToll(null);
+    const payload = await search({ start, end, startCoords, endCoords });
+    if (payload) {
+      setStartCoords(payload.startCoords);
+      setEndCoords(payload.endCoords);
+    }
+  };
+
+  const handleSwapWaypoints = () => {
+    const prevStart = start;
+    const prevStartCoords = startCoords;
+    setStart(end);
+    setStartCoords(endCoords);
+    setEnd(prevStart);
+    setEndCoords(prevStartCoords);
+  };
 
   return (
     <div className="min-h-screen flex flex-col text-slate-900">
@@ -21,22 +162,59 @@ function App() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start mt-4">
           <div className="lg:col-span-5 flex flex-col gap-6">
             <TripPlanner
-              onSearch={search}
+              start={start}
+              end={end}
+              onStartChange={(text) => {
+                setStart(text);
+                setStartCoords(null);
+              }}
+              onEndChange={(text) => {
+                setEnd(text);
+                setEndCoords(null);
+              }}
+              onStartSelect={(s) => {
+                setStart(s.label);
+                setStartCoords(s.coords);
+              }}
+              onEndSelect={(s) => {
+                setEnd(s.label);
+                setEndCoords(s.coords);
+              }}
+              onSwap={handleSwapWaypoints}
+              settings={settings}
+              onSettingChange={updateSetting}
+              onSearch={handleSearch}
               loading={loading}
               error={error}
               onDismissError={clearError}
+              hasActiveRoute={Boolean(activeResult)}
             />
 
-            {result && (
+            {activeResult && (
               <div className="flex flex-col gap-6">
-                <RouteSummary result={result} />
-                <TollList tolls={result.tolls} vehicle={result.vehicle} />
+                <RouteSummary
+                  result={activeResult}
+                  comparison={comparison}
+                  onSelectRouteMode={(avoid) => updateSetting("avoidTolls", avoid)}
+                />
+                <TollList
+                  tolls={activeResult.tolls}
+                  vehicle={settings.vehicle}
+                  roundTrip={settings.roundTrip}
+                  onSelectToll={(toll) => setFocusedToll(toll)}
+                />
               </div>
             )}
           </div>
 
           <div className="lg:col-span-7 lg:sticky lg:top-20">
-            <MapView route={result} loading={loading} />
+            <MapView
+              route={activeResult}
+              alternativeRoute={comparison?.alternative}
+              focusedToll={focusedToll}
+              loading={loading}
+              onSelectRouteMode={(avoid) => updateSetting("avoidTolls", avoid)}
+            />
           </div>
         </div>
       </main>

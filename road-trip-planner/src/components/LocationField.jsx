@@ -11,18 +11,22 @@ function LocationField({
   onSelect,
   className = "",
   badgeColor = "bg-blue-600",
+  rightAction = null,
 }) {
   const { suggestions, search, clear } = useAutocomplete();
   const open = suggestions.length > 0;
 
   return (
     <div className={`relative ${className}`}>
-      <label
-        htmlFor={id}
-        className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5"
-      >
-        {label}
-      </label>
+      <div className="flex items-center justify-between mb-1.5">
+        <label
+          htmlFor={id}
+          className="block text-xs font-bold uppercase tracking-wider text-slate-500"
+        >
+          {label}
+        </label>
+        {rightAction}
+      </div>
 
       <div className="relative flex items-center">
         <span
@@ -61,6 +65,7 @@ function LocationField({
               key={`${s.label}-${i}`}
               role="option"
               aria-selected="false"
+              // onMouseDown fires before the input's blur, so the pick isn't lost.
               onMouseDown={(e) => {
                 e.preventDefault();
                 onSelect(s);

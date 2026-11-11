@@ -1,5 +1,5 @@
-// All OpenRouteService calls go through our own /api/ors proxy, which adds the
-// API key server-side (see api/ors/[...path].js and the Vite dev proxy).
+// All OpenRouteService calls go through our own /api/ors proxy
+
 const BASE = "/api/ors";
 
 function messageForStatus(status) {
@@ -27,10 +27,9 @@ async function request(url, options, networkMessage) {
   return res.json();
 }
 
-// Returns [{ label, coords: [lng, lat] }]
 export async function autocomplete(query, signal) {
   const data = await request(
-    `${BASE}/geocode/autocomplete?text=${encodeURIComponent(query)}`,
+    `${BASE}/geocode/autocomplete?text=${encodeURIComponent(query)}&boundary.country=GR`,
     { signal },
     "Couldn't load suggestions."
   );
@@ -40,17 +39,29 @@ export async function autocomplete(query, signal) {
   }));
 }
 
-// Returns [lng, lat] or null when nothing matches
 export async function geocode(place, signal) {
   const data = await request(
-    `${BASE}/geocode/search?text=${encodeURIComponent(place)}`,
+    `${BASE}/geocode/search?text=${encodeURIComponent(place)}&boundary.country=GR`,
     { signal },
     "Couldn't reach the location service. Check your connection and try again."
   );
   return data.features?.[0]?.geometry?.coordinates ?? null;
 }
 
-// Returns the first GeoJSON feature of the route
+// Reverse-geocodes GPS coordinates into a human-readable label (falls back to lat/lng string)
+export async function reverseGeocode(lat, lng, signal) {
+  try {
+    const data = await request(
+      `${BASE}/geocode/reverse?point.lat=${encodeURIComponent(lat)}&point.lon=${encodeURIComponent(lng)}&size=1`,
+      { signal },
+      "Couldn't resolve your location name."
+    );
+    return data.features?.[0]?.properties?.label ?? `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  } catch {
+    return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  }
+}
+
 export async function fetchRoute(startCoords, endCoords, { avoidTolls = false, signal } = {}) {
   const data = await request(
     `${BASE}/v2/directions/driving-car/geojson`,
