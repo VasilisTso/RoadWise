@@ -8,7 +8,6 @@ function TripSettings({ settings, onChange }) {
   return (
     <div className="pt-4 border-t border-slate-100 space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-        {/* Fuel Price */}
         <div>
           <label
             htmlFor="fuel-price"
@@ -34,7 +33,6 @@ function TripSettings({ settings, onChange }) {
           </div>
         </div>
 
-        {/* Fuel Consumption */}
         <div>
           <label
             htmlFor="consumption"
@@ -62,7 +60,6 @@ function TripSettings({ settings, onChange }) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 items-end">
-        {/* Passengers */}
         <div>
           <label
             htmlFor="passengers"
@@ -87,7 +84,6 @@ function TripSettings({ settings, onChange }) {
           </div>
         </div>
 
-        {/* Route Option */}
         <div>
           <label
             htmlFor="route-option"
@@ -97,7 +93,6 @@ function TripSettings({ settings, onChange }) {
             <span>Toll Routing</span>
           </label>
 
-          {/* Keep select for accessibility & strict DOM queries */}
           <select
             id="route-option"
             value={avoidTolls ? "noTolls" : "tolls"}

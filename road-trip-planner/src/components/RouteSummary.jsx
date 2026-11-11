@@ -3,7 +3,6 @@ import { motion } from "framer-motion"; // eslint-disable-line
 import { formatDuration, formatEuro, formatKm } from "../utils/format";
 import { FaReceipt, FaArrowRight } from "react-icons/fa";
 
-// `result` is the object produced by useRoute (numbers, not preformatted strings)
 function RouteSummary({ result }) {
   if (!result) return null;
 
@@ -13,7 +12,6 @@ function RouteSummary({ result }) {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
     >
-      {/* Header */}
       <div className="bg-slate-900 text-white px-5 py-3.5 flex items-center justify-between border-b border-slate-800">
         <div className="flex items-center gap-2">
           <FaReceipt className="text-amber-400 text-sm" />
@@ -33,7 +31,6 @@ function RouteSummary({ result }) {
       </div>
 
       <div className="p-5 space-y-5">
-        {/* Route Origin -> Destination Banner */}
         <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-3.5 flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
             <span className="block text-[10px] font-mono-num uppercase tracking-wider text-slate-400">
@@ -58,7 +55,6 @@ function RouteSummary({ result }) {
           </div>
         </div>
 
-        {/* Primary Metrics Grid */}
         <div className="grid grid-cols-2 gap-3">
           <div className="p-3.5 rounded-lg border border-slate-200/80 bg-white">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
@@ -79,7 +75,6 @@ function RouteSummary({ result }) {
           </div>
         </div>
 
-        {/* Itemized Expense Ledger */}
         <div className="border-t border-dashed border-slate-200 pt-4 space-y-2.5 text-sm">
           <div className="flex items-center justify-between text-slate-600">
             <span>Estimated Fuel Burn</span>
@@ -99,7 +94,6 @@ function RouteSummary({ result }) {
           </div>
         </div>
 
-        {/* Total & Per-Passenger Highlight Box */}
         <div className="bg-slate-900 text-white rounded-xl p-4 grid grid-cols-2 gap-4 items-center">
           <div>
             <span className="text-[10px] font-mono-num uppercase tracking-widest text-slate-400 block">

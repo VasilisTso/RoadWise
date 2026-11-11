@@ -61,7 +61,6 @@ function LocationField({
               key={`${s.label}-${i}`}
               role="option"
               aria-selected="false"
-              // onMouseDown fires before the input's blur, so the pick isn't lost.
               onMouseDown={(e) => {
                 e.preventDefault();
                 onSelect(s);

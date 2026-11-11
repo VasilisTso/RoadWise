@@ -19,7 +19,6 @@ function App() {
         <Hero />
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start mt-4">
-          {/* LEFT COLUMN: Controls & Telemetry Receipt */}
           <div className="lg:col-span-5 flex flex-col gap-6">
             <TripPlanner
               onSearch={search}
@@ -36,7 +35,6 @@ function App() {
             )}
           </div>
 
-          {/* RIGHT COLUMN: Sticky Interactive Cartography HUD */}
           <div className="lg:col-span-7 lg:sticky lg:top-20">
             <MapView route={result} loading={loading} />
           </div>

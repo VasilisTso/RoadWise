@@ -6,19 +6,16 @@ import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
 import { escapeHtml, formatEuro, formatDuration, formatKm } from "../utils/format";
 
-// Default marker icons break under Vite unless the image URLs are set explicitly.
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon2x,
   iconUrl: markerIcon,
   shadowUrl: markerShadow,
 });
 
-// Purely presentational: draws whatever `route` (the useRoute result) contains.
 function MapView({ route, loading = false }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
 
-  // Create the map once (and clean up on unmount / StrictMode re-mount)
   useEffect(() => {
     const map = L.map(containerRef.current).setView([39.0742, 21.8243], 7);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -33,7 +30,6 @@ function MapView({ route, loading = false }) {
     };
   }, []);
 
-  // Draw the route + toll markers; the cleanup removes them when `route` changes
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !route) return;
@@ -65,7 +61,6 @@ function MapView({ route, loading = false }) {
 
   return (
     <div className="bg-white border border-slate-200/90 rounded-xl shadow-xs overflow-hidden">
-      {/* Top Map HUD Bar */}
       <div className="bg-slate-900 text-white px-4 py-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-800">
         <div className="flex items-center gap-2.5">
           <span className="w-2 h-2 rounded-full bg-amber-400" />
@@ -96,7 +91,6 @@ function MapView({ route, loading = false }) {
         </div>
       </div>
 
-      {/* Map Canvas Container */}
       <div className="relative w-full h-[500px] lg:h-[680px]">
         <div ref={containerRef} className="w-full h-full z-10" />
 

@@ -4,12 +4,9 @@ import { FaCar, FaMotorcycle, FaCompass, FaExclamationTriangle, FaTimes } from "
 import LocationField from "./LocationField";
 import TripSettings from "./TripSettings";
 
-// The input form. It owns form state only; searching, loading and errors
-// belong to useRoute and arrive as props.
 function TripPlanner({ onSearch, loading, error, onDismissError }) {
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
-  // Exact [lng, lat] from a selected suggestion. Cleared when the text is edited.
   const [startCoords, setStartCoords] = useState(null);
   const [endCoords, setEndCoords] = useState(null);
 
@@ -32,7 +29,6 @@ function TripPlanner({ onSearch, loading, error, onDismissError }) {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
     >
-      {/* Panel Header */}
       <div className="bg-slate-900 text-white px-5 py-3.5 flex items-center justify-between border-b border-slate-800">
         <div className="flex items-center gap-2">
           <FaCompass className="text-amber-400 text-base" />
@@ -46,7 +42,6 @@ function TripPlanner({ onSearch, loading, error, onDismissError }) {
       </div>
 
       <div className="p-5 space-y-6">
-        {/* Section 1: Waypoints */}
         <div className="space-y-3.5 relative">
           <LocationField
             id="start-location"
@@ -81,7 +76,6 @@ function TripPlanner({ onSearch, loading, error, onDismissError }) {
           />
         </div>
 
-        {/* Section 2: Vehicle Class Segmented Toggle */}
         <div className="pt-2 border-t border-slate-100">
           <label
             htmlFor="vehicle"
@@ -90,7 +84,6 @@ function TripPlanner({ onSearch, loading, error, onDismissError }) {
             Vehicle Classification
           </label>
 
-          {/* Keep hidden select for screen readers / strict id compatibility */}
           <select
             id="vehicle"
             value={settings.vehicle}
@@ -130,10 +123,8 @@ function TripPlanner({ onSearch, loading, error, onDismissError }) {
           </div>
         </div>
 
-        {/* Section 3: Fuel, Passengers & Toll Preference */}
         <TripSettings settings={settings} onChange={updateSetting} />
 
-        {/* Error Alert */}
         {error && (
           <div
             role="alert"
@@ -153,7 +144,6 @@ function TripPlanner({ onSearch, loading, error, onDismissError }) {
           </div>
         )}
 
-        {/* Submit Button */}
         <motion.button
           whileTap={{ scale: 0.985 }}
           onClick={handleSearch}
