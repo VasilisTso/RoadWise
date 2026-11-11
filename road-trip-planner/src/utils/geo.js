@@ -10,11 +10,7 @@ export function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// A toll counts as "on the route" if it is within this distance of the toll road.
-// 3 km tolerates imprecise plaza coordinates (e.g. a town centre instead of the
-// plaza itself). Once tolls.json holds exact plaza positions this can go back to ~1.
-export const TOLL_MATCH_TOLERANCE_KM = 3;
-const SEARCH_LIMIT_KM = 25; // beyond this we don't bother measuring
+export const TOLL_MATCH_TOLERANCE_KM = 3.5;
 
 /**
  * OpenRouteService `extras.tollways.values` is a list of [fromIdx, toIdx, flag]
@@ -47,68 +43,13 @@ export function tolledDistanceKm(routeCoords, tolledSegments) {
   return km;
 }
 
-/**
- * For every toll: distance (km) to the nearest route segment and how far along
- * the route that point is. If `tolledSegments` is given, only toll-road segments
- * are considered, so a plaza next to a *free* parallel road won't match.
- * routeCoords: [[lat, lng], ...]. Uses a local flat projection (fine over Greece).
- * Returns [{ ...toll, offRouteKm, distanceAlongKm }]  (offRouteKm = Infinity if far/none)
- */
-export function measureTolls(tolls, routeCoords, { tolledSegments = null } = {}) {
-  if (!routeCoords || routeCoords.length < 2) return [];
-
-  const meanLat = routeCoords.reduce((sum, [lat]) => sum + lat, 0) / routeCoords.length;
-  const cosLat = Math.cos(meanLat * DEG);
-  const project = (lat, lng) => [lng * DEG * R * cosLat, lat * DEG * R];
-
-  const pts = routeCoords.map(([lat, lng]) => project(lat, lng));
-  const cum = [0]; // cumulative km along the whole route
-  for (let i = 1; i < pts.length; i++) {
-    cum[i] = cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
-  }
-
-  return tolls.map((toll) => {
-    const [px, py] = project(toll.lat, toll.lng);
-    let bestDist = Infinity;
-    let bestAlong = 0;
-
-    for (let i = 0; i < pts.length - 1; i++) {
-      if (tolledSegments && !tolledSegments[i]) continue;
-      const [ax, ay] = pts[i];
-      const [bx, by] = pts[i + 1];
-
-      if (
-        px < Math.min(ax, bx) - SEARCH_LIMIT_KM || px > Math.max(ax, bx) + SEARCH_LIMIT_KM ||
-        py < Math.min(ay, by) - SEARCH_LIMIT_KM || py > Math.max(ay, by) + SEARCH_LIMIT_KM
-      ) continue;
-
-      const dx = bx - ax;
-      const dy = by - ay;
-      const len2 = dx * dx + dy * dy;
-      const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / len2));
-      const d = Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
-
-      if (d < bestDist) {
-        bestDist = d;
-        bestAlong = cum[i] + t * Math.sqrt(len2);
-      }
-    }
-    return { ...toll, offRouteKm: bestDist, distanceAlongKm: bestAlong };
-  });
-}
-
-// Projects point P(pLat, pLng) onto segment A(aLat, aLng) -> B(bLat, bLng) using a local
-// equirectangular tangent plane. Returns perpendicular distance in km, progress t in [0, 1],
-// and the exact [snappedLat, snappedLng] point on the highway segment.
 function projectPointOntoSegment(pLat, pLng, aLat, aLng, bLat, bLng) {
-  const R = 6371;
-  const rad = Math.PI / 180;
-  const cosLat = Math.cos(((aLat + bLat + pLat) / 3) * rad);
+  const cosLat = Math.cos(((aLat + bLat + pLat) / 3) * DEG);
 
-  const bx = (bLng - aLng) * rad * cosLat * R;
-  const by = (bLat - aLat) * rad * R;
-  const px = (pLng - aLng) * rad * cosLat * R;
-  const py = (pLat - aLat) * rad * R;
+  const bx = (bLng - aLng) * DEG * cosLat * R;
+  const by = (bLat - aLat) * DEG * R;
+  const px = (pLng - aLng) * DEG * cosLat * R;
+  const py = (pLat - aLat) * DEG * R;
 
   const lenSq = bx * bx + by * by;
 
@@ -128,18 +69,14 @@ function projectPointOntoSegment(pLat, pLng, aLat, aLng, bLat, bLng) {
   return { distKm, t, snappedLat, snappedLng };
 }
 
-// routeCoords: [[lat, lng], ...]
 // Matches tolls using perpendicular point-to-segment distance, snaps their coordinates
 // directly onto the route polyline, and orders them chronologically (Origin -> Destination).
-export function getTollsOnRoute(tolls, routeCoords, defaultRadiusKm = 4.5) {
-  if (!Array.isArray(routeCoords) || routeCoords.length === 0) return [];
-
-  if (routeCoords.length === 1) {
-    const [lat, lng] = routeCoords[0];
-    return tolls
-      .filter((t) => getDistanceFromLatLonInKm(lat, lng, t.lat, t.lng) <= defaultRadiusKm)
-      .map((t) => ({ ...t, lat, lng }));
-  }
+export function getTollsOnRoute(
+  tolls,
+  routeCoords,
+  { defaultRadiusKm = 4.5, tolledSegments = null } = {}
+) {
+  if (!Array.isArray(routeCoords) || routeCoords.length < 2) return [];
 
   const matched = [];
 
@@ -152,10 +89,12 @@ export function getTollsOnRoute(tolls, routeCoords, defaultRadiusKm = 4.5) {
     let bestLng = toll.lng;
 
     for (let i = 0; i < routeCoords.length - 1; i++) {
+      // If ORS provided tollway segment flags, only match segments flagged as tollways
+      if (tolledSegments && !tolledSegments[i]) continue;
+
       const [aLat, aLng] = routeCoords[i];
       const [bLat, bLng] = routeCoords[i + 1];
 
-      // Generous bounding-box pre-filter (~0.08 deg is ~8.8 km)
       const minLat = Math.min(aLat, bLat) - 0.08;
       const maxLat = Math.max(aLat, bLat) + 0.08;
       const minLng = Math.min(aLng, bLng) - 0.08;
@@ -190,7 +129,6 @@ export function getTollsOnRoute(tolls, routeCoords, defaultRadiusKm = 4.5) {
     if (minDist <= maxRadiusKm) {
       matched.push({
         ...toll,
-        // Override lat/lng with the exact snapped point on the highway polyline!
         lat: bestLat,
         lng: bestLng,
         rawLat: toll.lat,
@@ -200,7 +138,6 @@ export function getTollsOnRoute(tolls, routeCoords, defaultRadiusKm = 4.5) {
     }
   }
 
-  // Sort chronologically along the driving route from Origin -> Destination
   matched.sort((a, b) => a.routeOrder - b.routeOrder);
   return matched;
 }

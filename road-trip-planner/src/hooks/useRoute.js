@@ -1,26 +1,29 @@
 import { useCallback, useRef, useState } from "react";
 import tollData from "../data/tolls.json";
 import { fetchRoute, geocode } from "../services/ors";
-import { getTollsOnRoute } from "../utils/geo";
+import { getTollsOnRoute, tolledSegmentsFromExtras } from "../utils/geo";
 
 function parseFeature(feature, includeTolls) {
   // ORS gives [lng, lat]; Leaflet wants [lat, lng]
   const coords = feature.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
   const distanceKm = feature.properties.summary.distance / 1000;
   const durationMin = feature.properties.summary.duration / 60;
-  // Even on "avoidTolls", check with a tight radius in case a bridge/tunnel is unavoidable,
-  // or keep empty when avoiding tollways.
-  const tolls = includeTolls ? getTollsOnRoute(tollData, coords) : [];
+
+  const tollValues = feature.properties?.extras?.tollways?.values;
+  const tolledSegments = tolledSegmentsFromExtras(tollValues, coords.length);
+
+  const tolls = includeTolls
+    ? getTollsOnRoute(tollData, coords, { tolledSegments })
+    : [];
+
   return { coords, distanceKm, durationMin, tolls };
 }
 
-// Owns route geometry fetching only. Cost math is decoupled and computed reactively
-// via useMemo in App.jsx so changing fuel, passengers, vehicle, or round-trip is instant.
 export function useRoute() {
   const [routeData, setRouteData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const requestId = useRef(0); // ignore responses from superseded searches
+  const requestId = useRef(0);
 
   const clearError = useCallback(() => setError(null), []);
 
@@ -41,10 +44,10 @@ export function useRoute() {
       const eCoords = endCoords ?? (await geocode(end));
       if (!eCoords) throw new Error(`Couldn't find "${end}". Try a more specific place name.`);
 
-      // Fetch both With-Tolls and Toll-Free routes in parallel for instant comparison
+      // Fetch both With-Tolls and Toll-Free routes in parallel
       const [tollSettled, freeSettled] = await Promise.allSettled([
-        fetchRoute(sCoords, eCoords, { avoidTolls: false }),
-        fetchRoute(sCoords, eCoords, { avoidTolls: true }),
+        fetchRoute(sCoords, eCoords, { avoidTolls: false, withTollInfo: true }),
+        fetchRoute(sCoords, eCoords, { avoidTolls: true, withTollInfo: false }),
       ]);
 
       if (id !== requestId.current) return null;

@@ -62,7 +62,11 @@ export async function reverseGeocode(lat, lng, signal) {
   }
 }
 
-export async function fetchRoute(startCoords, endCoords, { avoidTolls = false, signal } = {}) {
+export async function fetchRoute(
+  startCoords,
+  endCoords,
+  { avoidTolls = false, withTollInfo = false, signal } = {}
+) {
   const data = await request(
     `${BASE}/v2/directions/driving-car/geojson`,
     {

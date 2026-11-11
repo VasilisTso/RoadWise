@@ -84,10 +84,6 @@ function MapView({
   const mapRef = useRef(null);
   const markersByTollNameRef = useRef(new Map());
 
-  useEffect(() => {
-    onSelectRef.current = onSelectRoute;
-  });
-
   // Create the map once (cleaned up on unmount / StrictMode re-mount)
   useEffect(() => {
     const map = L.map(containerRef.current).setView([39.0742, 21.8243], 7);
