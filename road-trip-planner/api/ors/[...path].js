@@ -1,11 +1,12 @@
 // Vercel serverless proxy for OpenRouteService.
-// Keeps the API key on the server (env var ORS_API_KEY, NOT prefixed with VITE_)
-// and only forwards the three endpoints the app needs.
+// only forwards the endpoints the app needs.
+
 const ORS_BASE = "https://api.openrouteservice.org";
 
 const ALLOWED = {
   "geocode/autocomplete": "GET",
   "geocode/search": "GET",
+  "geocode/reverse": "GET",
   "v2/directions/driving-car/geojson": "POST",
 };
 
@@ -29,7 +30,6 @@ export default async function handler(req, res) {
     if (!Array.isArray(b.coordinates) || b.coordinates.length !== 2 || !b.coordinates.every(isCoord)) {
       return res.status(400).json({ error: "Invalid coordinates" });
     }
-    // Rebuild the body from known fields so clients can't send arbitrary ORS options.
     body = JSON.stringify({
       coordinates: b.coordinates,
       instructions: false,
@@ -51,8 +51,8 @@ export default async function handler(req, res) {
       headers: { Authorization: key, "Content-Type": "application/json" },
       body,
     });
-    const text = await upstream.text();
 
+    const text = await upstream.text();
     if (req.method === "GET" && upstream.ok) {
       res.setHeader("Cache-Control", "public, s-maxage=3600, stale-while-revalidate=86400");
     }

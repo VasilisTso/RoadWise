@@ -1,13 +1,31 @@
-// Pure function (easy to unit test in Phase 4).
-// route: { distanceKm, durationMin, tolls }  (one way)
-// settings: { vehicle, fuelPrice, consumption, passengers, roundTrip }
-export function calculateTrip(route, { vehicle, fuelPrice, consumption, passengers, roundTrip }) {
-  const m = roundTrip ? 2 : 1;
-  const distanceKm = route.distanceKm * m;
-  const durationMin = route.durationMin * m;
-  const tollCost = route.tolls.reduce((sum, t) => sum + (t[vehicle] ?? 0), 0) * m;
-  const fuelCost = (distanceKm * consumption * fuelPrice) / 100;
+export function calculateCosts({
+  distanceKm,
+  durationMin = 0,
+  consumption,
+  fuelPrice,
+  tolls,
+  vehicle,
+  passengers,
+  roundTrip = false,
+}) {
+  const multiplier = roundTrip ? 2 : 1;
+  const effectiveDistanceKm = distanceKm * multiplier;
+  const effectiveDurationMin = durationMin * multiplier;
+
+  const oneWayTollCost = tolls.reduce((sum, t) => sum + (t[vehicle] ?? 0), 0);
+  const tollCost = oneWayTollCost * multiplier;
+  const fuelCost = (effectiveDistanceKm * consumption * fuelPrice) / 100;
   const totalCost = fuelCost + tollCost;
-  const perPassenger = totalCost / Math.max(1, passengers);
-  return { distanceKm, durationMin, tollCost, fuelCost, totalCost, perPassenger };
+  const safePassengers = Math.max(1, Number(passengers) || 1);
+  const perPassenger = totalCost / safePassengers;
+
+  return {
+    multiplier,
+    effectiveDistanceKm,
+    effectiveDurationMin,
+    fuelCost,
+    tollCost,
+    totalCost,
+    perPassenger,
+  };
 }
