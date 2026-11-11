@@ -12,29 +12,40 @@ function App() {
   const { result, loading, error, search, clearError } = useRoute();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-indigo-100 to-indigo-50">
+    <div className="min-h-screen flex flex-col text-slate-900">
       <Header />
-      <Hero />
 
-      <TripPlanner
-        onSearch={search}
-        loading={loading}
-        error={error}
-        onDismissError={clearError}
-      />
+      <main className="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-16">
+        <Hero />
 
-      <MapView route={result} />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start mt-4">
+          {/* LEFT COLUMN: Controls & Telemetry Receipt */}
+          <div className="lg:col-span-5 flex flex-col gap-6">
+            <TripPlanner
+              onSearch={search}
+              loading={loading}
+              error={error}
+              onDismissError={clearError}
+            />
 
-      {result && (
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row px-4 items-start gap-6 mt-6">
-          <TollList tolls={result.tolls} />
-          <RouteSummary result={result} />
+            {result && (
+              <div className="flex flex-col gap-6">
+                <RouteSummary result={result} />
+                <TollList tolls={result.tolls} vehicle={result.vehicle} />
+              </div>
+            )}
+          </div>
+
+          {/* RIGHT COLUMN: Sticky Interactive Cartography HUD */}
+          <div className="lg:col-span-7 lg:sticky lg:top-20">
+            <MapView route={result} loading={loading} />
+          </div>
         </div>
-      )}
+      </main>
 
       <Footer />
     </div>
   );
 }
 
-export default App
+export default App;
