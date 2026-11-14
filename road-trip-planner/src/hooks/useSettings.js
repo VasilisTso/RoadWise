@@ -10,6 +10,7 @@ const DEFAULTS = {
   fuelPrice: 1.8,
   consumption: DEFAULT_CONSUMPTION.car,
   passengers: 1,
+  avoidTolls: false,
   roundTrip: false,
 };
 
@@ -32,8 +33,9 @@ function load() {
 }
 
 // Trip settings, remembered between visits (locations are intentionally not saved).
-export function useSettings() {
-  const [settings, setSettings] = useState(load);
+// `overrides` (e.g. from a shared link's URL params) take precedence over stored values.
+export function useSettings(overrides) {
+  const [settings, setSettings] = useState(() => ({ ...load(), ...overrides }));
 
   useEffect(() => {
     try {

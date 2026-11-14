@@ -83,6 +83,7 @@ function MapView({
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const markersByTollNameRef = useRef(new Map());
+  const fittedCoordsRef = useRef(null);
 
   // Create the map once (cleaned up on unmount / StrictMode re-mount)
   useEffect(() => {
@@ -134,7 +135,11 @@ function MapView({
       opacity: 0.95,
     }).addTo(map);
 
-    map.fitBounds(line.getBounds(), { padding: [40, 40] });
+    // Only re-fit when the geometry changes, so settings tweaks keep the user's zoom
+    if (fittedCoordsRef.current !== route.coords) {
+      fittedCoordsRef.current = route.coords;
+      map.fitBounds(line.getBounds(), { padding: [40, 40] });
+    }
 
     // Origin (A) & Destination (B) endpoint pins
     const startPt = route.coords[0];

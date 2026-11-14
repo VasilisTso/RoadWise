@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Header from "./components/Header";
 import Hero from "./components/Hero";
 import TripPlanner from "./components/TripPlanner";
@@ -7,6 +7,7 @@ import TollList from "./components/TollList";
 import RouteSummary from "./components/RouteSummary";
 import Footer from "./components/Footer";
 import { useRoute } from "./hooks/useRoute";
+import { useSettings } from "./hooks/useSettings";
 import { calculateCosts } from "./utils/costs";
 
 function parseCoordParam(str) {
@@ -25,15 +26,24 @@ function getInitialUrlState() {
     end: params.get("to") || "",
     startCoords: parseCoordParam(params.get("sc")),
     endCoords: parseCoordParam(params.get("ec")),
-    settings: {
-      vehicle: params.get("veh") === "bike" ? "bike" : "car",
-      fuelPrice: Number(params.get("fp")) > 0 ? Number(params.get("fp")) : 1.8,
-      consumption: Number(params.get("cons")) > 0 ? Number(params.get("cons")) : 6.5,
-      passengers: Math.max(1, parseInt(params.get("pax") || "1", 10) || 1),
-      avoidTolls: params.get("avoid") === "1",
-      roundTrip: params.get("rt") === "1",
-    },
+    settings: getUrlSettings(params),
   };
+}
+
+// Only settings explicitly present in the URL; they override stored settings.
+function getUrlSettings(params) {
+  const out = {};
+  const veh = params.get("veh");
+  if (veh === "car" || veh === "bike") out.vehicle = veh;
+  const fp = Number(params.get("fp"));
+  if (params.has("fp") && fp > 0) out.fuelPrice = fp;
+  const cons = Number(params.get("cons"));
+  if (params.has("cons") && cons > 0) out.consumption = cons;
+  const pax = parseInt(params.get("pax") ?? "", 10);
+  if (pax >= 1) out.passengers = pax;
+  if (params.has("avoid")) out.avoidTolls = params.get("avoid") === "1";
+  if (params.has("rt")) out.roundTrip = params.get("rt") === "1";
+  return out;
 }
 
 function App() {
@@ -43,15 +53,16 @@ function App() {
   const [end, setEnd] = useState(initial.end);
   const [startCoords, setStartCoords] = useState(initial.startCoords);
   const [endCoords, setEndCoords] = useState(initial.endCoords);
-  const [settings, setSettings] = useState(initial.settings);
+  const { settings, updateSetting } = useSettings(initial.settings);
   const [focusedToll, setFocusedToll] = useState(null);
 
   const { routeData, loading, error, search, clearError } = useRoute();
   const didAutoSearch = useRef(false);
 
-  const updateSetting = (key, value) => {
-    setSettings((prev) => ({ ...prev, [key]: value }));
-  };
+  const handleSelectRouteMode = useCallback(
+    (avoid) => updateSetting("avoidTolls", avoid),
+    [updateSetting]
+  );
 
   // If the user opened a shared link with ?from=...&to=..., automatically fetch the route
   useEffect(() => {
@@ -195,7 +206,7 @@ function App() {
                 <RouteSummary
                   result={activeResult}
                   comparison={comparison}
-                  onSelectRouteMode={(avoid) => updateSetting("avoidTolls", avoid)}
+                  onSelectRouteMode={handleSelectRouteMode}
                 />
                 <TollList
                   tolls={activeResult.tolls}
@@ -213,7 +224,7 @@ function App() {
               alternativeRoute={comparison?.alternative}
               focusedToll={focusedToll}
               loading={loading}
-              onSelectRouteMode={(avoid) => updateSetting("avoidTolls", avoid)}
+              onSelectRouteMode={handleSelectRouteMode}
             />
           </div>
         </div>
