@@ -1,14 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion"; // eslint-disable-line no-unused-vars
 import Header from "./components/Header";
-import Hero from "./components/Hero";
 import TripPlanner from "./components/TripPlanner";
+import ResultsView from "./components/ResultsView";
 import MapView from "./components/MapView";
-import TollList from "./components/TollList";
-import RouteSummary from "./components/RouteSummary";
-import Footer from "./components/Footer";
+import Sheet from "./components/Sheet";
+import { TOP_GAP_PX, visibleSheetHeight } from "./utils/sheet";
 import { useRoute } from "./hooks/useRoute";
 import { useSettings } from "./hooks/useSettings";
+import { useTheme } from "./hooks/useTheme";
+import { DESKTOP_QUERY, useMediaQuery } from "./hooks/useMediaQuery";
 import { calculateCosts } from "./utils/costs";
+
+const TOP_BAR_PX = 52;
+const SHEET_GAP_PX = 16;
+const SHEET_WIDTH_PX = 400;
 
 function parseCoordParam(str) {
   if (!str) return null;
@@ -46,6 +52,13 @@ function getUrlSettings(params) {
   return out;
 }
 
+// Plan sits left of Results: each view enters from and leaves to its own side (fade only with reduced motion)
+const viewMotion = (dir, reduce) => ({
+  initial: { opacity: 0, x: reduce ? 0 : 24 * dir },
+  animate: { opacity: 1, x: 0, transition: { duration: 0.28, ease: [0.16, 1, 0.3, 1] } },
+  exit: { opacity: 0, x: reduce ? 0 : 16 * dir, transition: { duration: 0.14, ease: "easeIn" } },
+});
+
 function App() {
   const initial = useMemo(() => getInitialUrlState(), []);
 
@@ -54,7 +67,14 @@ function App() {
   const [startCoords, setStartCoords] = useState(initial.startCoords);
   const [endCoords, setEndCoords] = useState(initial.endCoords);
   const { settings, updateSetting } = useSettings(initial.settings);
+  const [view, setView] = useState("plan");
+  const [snap, setSnap] = useState("half");
   const [focusedToll, setFocusedToll] = useState(null);
+  const [highlightIndex, setHighlightIndex] = useState(null);
+
+  const { mode: themeMode, resolved: theme, cycle: cycleTheme } = useTheme();
+  const isDesktop = useMediaQuery(DESKTOP_QUERY);
+  const reduceMotion = useReducedMotion();
 
   const { routeData, loading, error, search, clearError } = useRoute();
   const didAutoSearch = useRef(false);
@@ -64,7 +84,12 @@ function App() {
     [updateSetting]
   );
 
-  // If the user opened a shared link with ?from=...&to=..., automatically fetch the route
+  const showResults = useCallback(() => {
+    setView("results");
+    setSnap("half");
+  }, []);
+
+  // A shared link with ?from=...&to=... loads its route straight away
   useEffect(() => {
     if (!didAutoSearch.current && initial.start.trim() && initial.end.trim()) {
       didAutoSearch.current = true;
@@ -73,9 +98,11 @@ function App() {
         end: initial.end,
         startCoords: initial.startCoords,
         endCoords: initial.endCoords,
+      }).then((payload) => {
+        if (payload) showResults();
       });
     }
-  }, [initial, search]);
+  }, [initial, search, showResults]);
 
   // Keep the URL query string in sync with active route & settings so links are always shareable
   useEffect(() => {
@@ -100,7 +127,7 @@ function App() {
     window.history.replaceState(null, "", newUrl);
   }, [routeData, settings]);
 
-  // Instant reactive cost calculation (zero API calls when settings change!)
+  // Costs recalculate locally: settings changes never cost a request
   const comparison = useMemo(() => {
     if (!routeData) return null;
 
@@ -143,94 +170,130 @@ function App() {
     return { withTolls, withoutTolls, active, alternative };
   }, [routeData, settings]);
 
+  // useRoute falls back to one branch for both when a variant fails
+  const hasAlternative = Boolean(routeData && routeData.withTolls !== routeData.withoutTolls);
   const activeResult = comparison?.active ?? null;
+  const showingResults = view === "results" && Boolean(activeResult);
 
   const handleSearch = async () => {
     setFocusedToll(null);
+    setHighlightIndex(null);
     const payload = await search({ start, end, startCoords, endCoords });
     if (payload) {
       setStartCoords(payload.startCoords);
       setEndCoords(payload.endCoords);
+      showResults();
     }
   };
 
   const handleSwapWaypoints = () => {
-    const prevStart = start;
-    const prevStartCoords = startCoords;
     setStart(end);
     setStartCoords(endCoords);
-    setEnd(prevStart);
-    setEndCoords(prevStartCoords);
+    setEnd(start);
+    setEndCoords(startCoords);
   };
 
+  const handleSelectToll = useCallback(
+    (toll, index) => {
+      setFocusedToll({ toll, index });
+      if (!isDesktop) setSnap("peek"); // uncover the map on a phone
+    },
+    [isDesktop]
+  );
+
+  // Space the sheet covers, so the route is framed in the visible map
+  const insets = isDesktop
+    ? { left: SHEET_GAP_PX + SHEET_WIDTH_PX }
+    : {
+        bottom: visibleSheetHeight(
+          snap,
+          window.innerHeight - TOP_BAR_PX - TOP_GAP_PX,
+          window.innerHeight
+        ),
+      };
+
   return (
-    <div className="min-h-screen flex flex-col text-slate-900">
-      <Header />
+    <div className="flex h-dvh flex-col overflow-hidden bg-ground text-ink">
+      <Header themeMode={themeMode} onCycleTheme={cycleTheme} />
 
-      <main className="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-16">
-        <Hero />
+      <main className="relative flex-1">
+        <MapView
+          route={activeResult}
+          alternativeRoute={hasAlternative ? comparison?.alternative : null}
+          focusedToll={focusedToll}
+          highlightIndex={highlightIndex}
+          loading={loading}
+          theme={theme}
+          isDesktop={isDesktop}
+          insets={insets}
+          onSelectRouteMode={handleSelectRouteMode}
+          onHoverToll={setHighlightIndex}
+        />
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start mt-4">
-          <div className="lg:col-span-5 flex flex-col gap-6">
-            <TripPlanner
-              start={start}
-              end={end}
-              onStartChange={(text) => {
-                setStart(text);
-                setStartCoords(null);
-              }}
-              onEndChange={(text) => {
-                setEnd(text);
-                setEndCoords(null);
-              }}
-              onStartSelect={(s) => {
-                setStart(s.label);
-                setStartCoords(s.coords);
-              }}
-              onEndSelect={(s) => {
-                setEnd(s.label);
-                setEndCoords(s.coords);
-              }}
-              onSwap={handleSwapWaypoints}
-              settings={settings}
-              onSettingChange={updateSetting}
-              onSearch={handleSearch}
-              loading={loading}
-              error={error}
-              onDismissError={clearError}
-              hasActiveRoute={Boolean(activeResult)}
-            />
-
-            {activeResult && (
-              <div className="flex flex-col gap-6">
-                <RouteSummary
+        <Sheet
+          isDesktop={isDesktop}
+          snap={snap}
+          onSnapChange={setSnap}
+          topOffset={TOP_BAR_PX}
+          label={showingResults ? "Trip results" : "Plan a trip"}
+          scrollKey={view}
+        >
+          <AnimatePresence mode="wait" initial={false}>
+            {showingResults ? (
+              <motion.div key="results" {...viewMotion(1, reduceMotion)}>
+                <ResultsView
                   result={activeResult}
                   comparison={comparison}
+                  hasAlternative={hasAlternative}
+                  settings={settings}
+                  onSettingChange={updateSetting}
                   onSelectRouteMode={handleSelectRouteMode}
+                  onEdit={() => setView("plan")}
+                  highlightIndex={highlightIndex}
+                  onHoverToll={setHighlightIndex}
+                  onSelectToll={handleSelectToll}
                 />
-                <TollList
-                  tolls={activeResult.tolls}
-                  vehicle={settings.vehicle}
-                  roundTrip={settings.roundTrip}
-                  onSelectToll={(toll) => setFocusedToll(toll)}
+              </motion.div>
+            ) : (
+              <motion.div key="plan" {...viewMotion(-1, reduceMotion)}>
+                <TripPlanner
+                  start={start}
+                  end={end}
+                  onStartChange={(text) => {
+                    setStart(text);
+                    setStartCoords(null);
+                  }}
+                  onEndChange={(text) => {
+                    setEnd(text);
+                    setEndCoords(null);
+                  }}
+                  onStartSelect={(s) => {
+                    setStart(s.label);
+                    setStartCoords(s.coords);
+                  }}
+                  onEndSelect={(s) => {
+                    setEnd(s.label);
+                    setEndCoords(s.coords);
+                  }}
+                  onSwap={handleSwapWaypoints}
+                  settings={settings}
+                  onSettingChange={updateSetting}
+                  onSearch={handleSearch}
+                  loading={loading}
+                  error={error}
+                  onDismissError={clearError}
+                  hasResults={Boolean(activeResult)}
+                  onShowResults={showResults}
                 />
-              </div>
+              </motion.div>
             )}
-          </div>
+          </AnimatePresence>
+        </Sheet>
 
-          <div className="lg:col-span-7 lg:sticky lg:top-20">
-            <MapView
-              route={activeResult}
-              alternativeRoute={comparison?.alternative}
-              focusedToll={focusedToll}
-              loading={loading}
-              onSelectRouteMode={handleSelectRouteMode}
-            />
-          </div>
-        </div>
+        <p role="status" className="sr-only">
+          {loading ? "Finding routes" : ""}
+        </p>
       </main>
-
-      <Footer />
     </div>
   );
 }

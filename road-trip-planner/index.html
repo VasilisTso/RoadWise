@@ -4,7 +4,15 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/distance.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>RoadWise</title>
+    <title>RoadWise: toll and fuel cost for Greek road trips</title>
+    <meta name="description" content="Plan a drive in Greece and see every toll booth on the route with its price, plus fuel cost, next to the toll-free route." />
+    <script>
+      // Apply a saved theme before first paint (useTheme takes over after load)
+      try {
+        var t = localStorage.getItem("roadwise:theme:v1");
+        if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   </head>

@@ -1,111 +1,72 @@
 import React from "react";
-import { motion } from "framer-motion"; // eslint-disable-line
-import { FaRoad, FaCheckCircle, FaMapPin } from "react-icons/fa";
+import { formatEuro, pluralize } from "../utils/format";
 
-function TollList({ tolls, vehicle = "car", roundTrip = false, onSelectToll }) {
+const VEHICLE_NAME = { car: "car", bike: "motorbike" };
+
+// Tolls tab: the route's booths in driving order, set like a posted rate board.
+function TollList({ tolls, vehicle = "car", roundTrip = false, highlightIndex, onHoverToll, onSelectToll }) {
+  if (tolls.length === 0) {
+    return (
+      <div className="rounded-plate border border-dashed border-line-strong px-4 py-6 text-center">
+        <p className="font-medium text-ink">No toll booths on this route</p>
+        <p className="mt-1 text-[13px] text-ink-muted">You pay for fuel only.</p>
+      </div>
+    );
+  }
+
+  const other = vehicle === "car" ? "bike" : "car";
+  const oneWay = tolls.reduce((sum, t) => sum + (t[vehicle] ?? 0), 0);
+
   return (
-    <motion.div
-      className="w-full bg-white border border-slate-200/90 rounded-xl shadow-xs overflow-hidden"
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-    >
-      <div className="bg-slate-50 px-5 py-3.5 border-b border-slate-200/90 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <FaRoad className="text-slate-700 text-sm" />
-          <h2 className="text-xs font-mono-num font-bold text-slate-900">
-            Ordered Toll Ledger
-          </h2>
-        </div>
-        <span className="text-xs font-mono-num font-semibold text-slate-500">
-          {tolls.length} {tolls.length === 1 ? "Plaza" : "Plazas"} {roundTrip ? "(×2 Return)" : ""}
+    <div>
+      <p className="mb-2 text-[13px] text-ink-muted">
+        Published rates for a {VEHICLE_NAME[vehicle]}, in driving order. Rates can change.
+      </p>
+      <ol className="rate-board" onMouseLeave={() => onHoverToll?.(null)}>
+        {tolls.map((toll, i) => (
+          <li key={toll.name}>
+            <button
+              type="button"
+              className="rate-row"
+              data-active={highlightIndex === i}
+              onMouseEnter={() => onHoverToll?.(i)}
+              onFocus={() => onHoverToll?.(i)}
+              onBlur={() => onHoverToll?.(null)}
+              onClick={() => onSelectToll?.(toll, i)}
+              aria-label={`${i + 1}. ${toll.name}, ${toll.highway}: ${formatEuro(toll[vehicle])}. Show on map`}
+            >
+              <span aria-hidden className="rate-row__num num">
+                {i + 1}
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate font-medium text-ink">{toll.name}</span>
+                <span className="block truncate text-[13px] text-ink-muted">
+                  {toll.highway}
+                  {toll.type === "ramp" ? " · exit ramp" : ""}
+                </span>
+              </span>
+              <span className="text-right">
+                <span className="num block font-plate text-[17px] font-semibold text-ink">
+                  {formatEuro(toll[vehicle])}
+                </span>
+                <span className="num block text-xs text-ink-subtle">
+                  {VEHICLE_NAME[other]} {formatEuro(toll[other])}
+                </span>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ol>
+      <div className="mt-1 flex items-baseline justify-between border-t border-line-strong pt-2.5">
+        <span className="text-ink">
+          {pluralize(tolls.length, "booth", "booths")}
+          {roundTrip && <span className="text-ink-muted"> · × 2 for the return</span>}
+        </span>
+        <span className="num font-plate text-[17px] font-semibold text-ink">
+          {formatEuro(oneWay * (roundTrip ? 2 : 1))}
         </span>
       </div>
-
-      {tolls.length === 0 ? (
-        <div className="p-6 text-center flex flex-col items-center gap-2">
-          <FaCheckCircle className="text-emerald-500 text-xl" />
-          <p className="text-sm font-semibold text-slate-800">
-            No toll stations on this route.
-          </p>
-          <p className="text-xs text-slate-500">
-            Your selected path avoids all registered Greek highway toll plazas.
-          </p>
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/60 text-[11px] font-mono-num text-slate-500">
-                <th className="py-2.5 pl-5 pr-2 w-10">#</th>
-                <th className="py-2.5 px-3">Plaza &amp; Corridor</th>
-                <th
-                  className={`py-2.5 px-3 text-right ${
-                    vehicle === "bike" ? "text-slate-900 font-bold" : ""
-                  }`}
-                >
-                  Bike (€)
-                </th>
-                <th
-                  className={`py-2.5 pl-3 pr-5 text-right ${
-                    vehicle === "car" ? "text-slate-900 font-bold" : ""
-                  }`}
-                >
-                  Car (€)
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-xs">
-              {tolls.map((toll, index) => (
-                <tr
-                  key={`${toll.name}-${index}`}
-                  onClick={() => onSelectToll?.(toll)}
-                  title="Click to locate toll plaza on map"
-                  className="hover:bg-slate-100/80 transition-colors cursor-pointer group"
-                >
-                  <td className="py-3 pl-5 pr-2 font-mono-num text-slate-400">
-                    {String(index + 1).padStart(2, "0")}
-                  </td>
-                  <td className="py-3 px-3">
-                    <div className="font-semibold text-slate-900 group-hover:text-blue-600 flex items-center gap-1.5 transition-colors">
-                      <span>{toll.name}</span>
-                      <FaMapPin className="text-[10px] opacity-0 group-hover:opacity-100 text-amber-500 transition-opacity" />
-                    </div>
-                    {toll.highway && (
-                      <div className="text-[10px] font-mono-num text-slate-400 mt-0.5 flex items-center gap-1.5">
-                        <span>{toll.highway}</span>
-                        {toll.type && toll.type !== "mainline" && (
-                          <span className="px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
-                            {toll.type}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </td>
-                  <td
-                    className={`py-3 px-3 text-right font-mono-num ${
-                      vehicle === "bike"
-                        ? "font-bold text-slate-950 bg-amber-50/60"
-                        : "text-slate-500"
-                    }`}
-                  >
-                    €{toll.bike.toFixed(2)}
-                  </td>
-                  <td
-                    className={`py-3 pl-3 pr-5 text-right font-mono-num ${
-                      vehicle === "car"
-                        ? "font-bold text-slate-950 bg-amber-50/60"
-                        : "text-slate-500"
-                    }`}
-                  >
-                    €{toll.car.toFixed(2)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </motion.div>
+    </div>
   );
 }
 

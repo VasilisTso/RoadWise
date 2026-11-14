@@ -1,21 +1,22 @@
 import React, { useEffect, useRef } from "react";
 import L from "leaflet";
-import { escapeHtml, formatEuro, formatDuration, formatKm } from "../utils/format";
+import { escapeHtml, formatEuro } from "../utils/format";
+import { DESKTOP_QUERY } from "../hooks/useMediaQuery";
 
 // Stadia Alidade Smooth: keyless on localhost; production needs the domain registered in Stadia
 const TILE_ATTRIBUTION =
-  '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+  '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 const TILE_URLS = {
   light: "https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png",
   dark: "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png",
 };
 
-// Active theme: explicit data-theme on <html>, otherwise the OS preference
-function resolveTheme() {
-  const attr = document.documentElement.dataset.theme;
-  if (attr === "light" || attr === "dark") return attr;
-  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
+const GREECE_VIEW = { center: [38.6, 23.2], zoom: 7 };
+const DRAW_MS = 900; // route draw-in; toll plates appear as the line reaches them
+const FIT_MARGIN = 40;
+
+const prefersReducedMotion = () =>
+  window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
 // Fixed price ramp for toll plates: bigger fee, bigger plate
 function tollSizeClass(fee) {
@@ -24,16 +25,31 @@ function tollSizeClass(fee) {
   return "rw-toll--sm";
 }
 
+function enterAttrs(delayMs) {
+  return delayMs == null ? "" : ` rw-enter" style="animation-delay:${Math.round(delayMs)}ms`;
+}
+
 // Numbered rate plate for each toll station on the route
-function createTollIcon(index, fee) {
+function createTollIcon(index, fee, delayMs) {
   return L.divIcon({
-    className: "roadwise-toll-marker",
+    className: "rw-toll-marker",
     iconSize: [64, 26],
     iconAnchor: [32, 13],
     popupAnchor: [0, -14],
-    html: `<div class="rw-toll ${tollSizeClass(fee)}"><span class="rw-toll__num">${
+    html: `<div class="rw-toll ${tollSizeClass(fee)}${enterAttrs(delayMs)}"><span class="rw-toll__num">${
       index + 1
     }</span><span class="rw-toll__fee">${escapeHtml(formatEuro(fee))}</span></div>`,
+  });
+}
+
+// Start / end pin
+function createEndpointIcon(letter, variant, delayMs) {
+  return L.divIcon({
+    className: "rw-pin-marker",
+    iconSize: [26, 26],
+    iconAnchor: [13, 13],
+    popupAnchor: [0, -14],
+    html: `<div class="rw-pin rw-pin--${variant}${enterAttrs(delayMs)}">${letter}</div>`,
   });
 }
 
@@ -43,243 +59,223 @@ function routeColor(avoidTolls) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || "#00824a";
 }
 
-// Origin / destination pin
-function createEndpointIcon(letter, variant) {
-  return L.divIcon({
-    className: "roadwise-endpoint-marker",
-    iconSize: [26, 26],
-    iconAnchor: [13, 13],
-    popupAnchor: [0, -14],
-    html: `<div class="rw-pin rw-pin--${variant}">${letter}</div>`,
-  });
+// Draws the SVG path in with stroke-dashoffset, then clears the dash so zooming stays correct
+function drawIn(line, map) {
+  const path = line.getElement();
+  if (!path?.getTotalLength) return () => {};
+  const len = path.getTotalLength();
+  path.style.strokeDasharray = `${len} ${len}`;
+  path.style.strokeDashoffset = `${len}`;
+  path.getBoundingClientRect(); // commit the start state before transitioning
+  path.style.transition = `stroke-dashoffset ${DRAW_MS}ms cubic-bezier(0.65, 0, 0.35, 1)`;
+  path.style.strokeDashoffset = "0";
+
+  const finish = () => {
+    path.removeEventListener("transitionend", finish);
+    map.off("zoomstart", finish);
+    path.style.transition = "";
+    path.style.strokeDasharray = "";
+    path.style.strokeDashoffset = "";
+  };
+  path.addEventListener("transitionend", finish);
+  map.on("zoomstart", finish); // a zoom re-projects the path; stop the dash trick
+  return finish;
 }
 
+const tollPopup = (toll, idx) => `<div class="rw-popup">
+  <div class="rw-popup__meta">${idx + 1} · ${escapeHtml(toll.highway || "Toll booth")}</div>
+  <div class="rw-popup__title">${escapeHtml(toll.name)}</div>
+  <div class="rw-popup__row"><span>Car</span><strong>${formatEuro(toll.car)}</strong></div>
+  <div class="rw-popup__row"><span>Motorbike</span><strong>${formatEuro(toll.bike)}</strong></div>
+</div>`;
+
+const endpointPopup = (label, name) =>
+  `<div class="rw-popup__label">${label}</div><div class="rw-popup__title">${escapeHtml(name)}</div>`;
+
+/**
+ * Full-bleed map. `insets` are the px the floating sheet covers, so the route is
+ * framed in the visible part of the map.
+ */
 function MapView({
   route,
   alternativeRoute = null,
   focusedToll = null,
+  highlightIndex = null,
   loading = false,
+  theme,
+  isDesktop,
+  insets,
   onSelectRouteMode,
+  onHoverToll,
 }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
-  const markersByTollNameRef = useRef(new Map());
+  const tilesRef = useRef(null);
+  const tollMarkersRef = useRef([]);
   const fittedCoordsRef = useRef(null);
+  const insetsRef = useRef(insets);
+  const callbacksRef = useRef({ onSelectRouteMode, onHoverToll });
+
+  useEffect(() => {
+    insetsRef.current = insets;
+    callbacksRef.current = { onSelectRouteMode, onHoverToll };
+  });
 
   // Create the map once (cleaned up on unmount / StrictMode re-mount)
   useEffect(() => {
-    const map = L.map(containerRef.current).setView([39.0742, 21.8243], 7);
-    const tiles = L.tileLayer(TILE_URLS[resolveTheme()], {
+    const map = L.map(containerRef.current, { zoomControl: false }).setView(
+      GREECE_VIEW.center,
+      GREECE_VIEW.zoom
+    );
+    // Start with Greece in the part of the map the sheet leaves visible
+    if (window.matchMedia(DESKTOP_QUERY).matches) map.panBy([-208, 0], { animate: false });
+    else map.setZoom(6, { animate: false }).panBy([0, 160], { animate: false });
+    L.control.zoom({ position: "topright" }).addTo(map);
+    tilesRef.current = L.tileLayer(TILE_URLS.light, {
       maxZoom: 20,
       attribution: TILE_ATTRIBUTION,
     }).addTo(map);
     mapRef.current = map;
 
-    // Swap basemap when the theme changes (data-theme attribute or OS setting)
-    const syncTiles = () => tiles.setUrl(TILE_URLS[resolveTheme()]);
-    const observer = new MutationObserver(syncTiles);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-    const media = window.matchMedia?.("(prefers-color-scheme: dark)");
-    media?.addEventListener("change", syncTiles);
+    // Keep Leaflet's size in sync with its container
+    const ro = new ResizeObserver(() => map.invalidateSize({ pan: false }));
+    ro.observe(containerRef.current);
 
     return () => {
-      observer.disconnect();
-      media?.removeEventListener("change", syncTiles);
+      ro.disconnect();
       map.remove();
       mapRef.current = null;
     };
   }, []);
 
-  // Draw the active route + ghost comparison route + snapped custom SVG/HTML markers
+  // Basemap follows the theme
+  useEffect(() => {
+    tilesRef.current?.setUrl(TILE_URLS[theme === "dark" ? "dark" : "light"]);
+  }, [theme]);
+
+  // Attribution stays visible: under the bottom sheet on mobile, so move it to the top
+  useEffect(() => {
+    mapRef.current?.attributionControl.setPosition(isDesktop ? "bottomright" : "topleft");
+  }, [isDesktop]);
+
+  // Draw the active route, the dashed alternative, and the markers
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !route || !route.coords?.length) return;
 
-    markersByTollNameRef.current.clear();
+    const isNewGeometry = fittedCoordsRef.current !== route.coords;
+    const animateIn = isNewGeometry && !prefersReducedMotion();
+    const delayFor = (fraction) => (animateIn ? fraction * DRAW_MS : null);
 
-    // Draw alternative route first as a dashed clickable ghost line
     let altLine = null;
-    if (alternativeRoute && alternativeRoute.coords?.length > 0) {
+    if (alternativeRoute?.coords?.length) {
       altLine = L.polyline(alternativeRoute.coords, {
         color: routeColor(alternativeRoute.avoidTolls),
         weight: 4,
-        opacity: 0.4,
-        dashArray: "8, 8",
+        opacity: 0.55,
+        dashArray: "2 8",
+        lineCap: "round",
+        className: animateIn ? "rw-alt-line rw-enter-late" : "rw-alt-line",
       })
         .bindTooltip(
-          `Switch to ${alternativeRoute.avoidTolls ? "Toll-Free" : "With Tolls"} (${formatEuro(
+          `Switch to ${alternativeRoute.avoidTolls ? "toll-free" : "with tolls"}: ${formatEuro(
             alternativeRoute.totalCost
-          )})`,
+          )}`,
           { sticky: true }
         )
-        .on("click", () => {
-          onSelectRouteMode?.(alternativeRoute.avoidTolls);
-        })
+        .on("click", () => callbacksRef.current.onSelectRouteMode?.(alternativeRoute.avoidTolls))
         .addTo(map);
     }
 
-    // Draw primary active route
     const line = L.polyline(route.coords, {
       color: routeColor(route.avoidTolls),
       weight: 5,
       opacity: 0.95,
+      lineJoin: "round",
     }).addTo(map);
 
     // Only re-fit when the geometry changes, so settings tweaks keep the user's zoom
-    if (fittedCoordsRef.current !== route.coords) {
+    let stopDraw = () => {};
+    if (isNewGeometry) {
       fittedCoordsRef.current = route.coords;
-      map.fitBounds(line.getBounds(), { padding: [40, 40] });
+      const { top = 0, right = 0, bottom = 0, left = 0 } = insetsRef.current ?? {};
+      map.fitBounds(line.getBounds(), {
+        paddingTopLeft: [left + FIT_MARGIN, top + FIT_MARGIN],
+        paddingBottomRight: [right + FIT_MARGIN, bottom + FIT_MARGIN],
+        animate: false,
+      });
+      if (animateIn) stopDraw = drawIn(line, map);
     }
 
-    // Origin (A) & Destination (B) endpoint pins
-    const startPt = route.coords[0];
-    const endPt = route.coords[route.coords.length - 1];
-
-    const startMarker = L.marker(startPt, {
-      icon: createEndpointIcon("A", "start"),
+    const last = route.coords.length - 1;
+    const startMarker = L.marker(route.coords[0], {
+      icon: createEndpointIcon("A", "start", delayFor(0)),
       zIndexOffset: 900,
+      keyboard: false,
     })
-      .bindPopup(
-        `<div class="rw-popup__label">Start</div><div class="rw-popup__title">${escapeHtml(
-          route.start
-        )}</div>`
-      )
+      .bindPopup(endpointPopup("Start", route.start))
       .addTo(map);
 
-    const endMarker = L.marker(endPt, {
-      icon: createEndpointIcon("B", "end"),
+    const endMarker = L.marker(route.coords[last], {
+      icon: createEndpointIcon("B", "end", delayFor(1)),
       zIndexOffset: 900,
+      keyboard: false,
     })
-      .bindPopup(
-        `<div class="rw-popup__label">Destination</div><div class="rw-popup__title">${escapeHtml(
-          route.end
-        )}</div>`
-      )
+      .bindPopup(endpointPopup("Destination", route.end))
       .addTo(map);
 
-    // Snapped Toll Plaza pill markers directly on the route line
-    const activeVehicle = route.vehicle || "car";
-    const tollMarkers = route.tolls.map((toll, idx) => {
-      const activeFee = toll[activeVehicle] ?? toll.car;
-      const marker = L.marker([toll.lat, toll.lng], {
-        icon: createTollIcon(idx, activeFee),
+    const vehicle = route.vehicle || "car";
+    tollMarkersRef.current = route.tolls.map((toll, idx) => {
+      const fee = toll[vehicle] ?? toll.car;
+      return L.marker([toll.lat, toll.lng], {
+        icon: createTollIcon(idx, fee, delayFor(toll.routeOrder / last)),
         zIndexOffset: 1000,
+        keyboard: false, // the toll list is the keyboard path to each booth
+        title: `${toll.name}: ${formatEuro(fee)}`,
       })
-        .bindPopup(
-          `<div class="rw-popup">
-            <div class="rw-popup__meta">${idx + 1} · ${escapeHtml(toll.highway || "Toll station")}</div>
-            <div class="rw-popup__title">${escapeHtml(toll.name)}</div>
-            <div class="rw-popup__row"><span>Car</span><strong>${formatEuro(toll.car)}</strong></div>
-            <div class="rw-popup__row"><span>Motorbike</span><strong>${formatEuro(toll.bike)}</strong></div>
-          </div>`
-        )
+        .bindPopup(tollPopup(toll, idx))
+        .on("mouseover", () => callbacksRef.current.onHoverToll?.(idx))
+        .on("mouseout", () => callbacksRef.current.onHoverToll?.(null))
         .addTo(map);
-
-      markersByTollNameRef.current.set(toll.name, marker);
-      return marker;
     });
 
     return () => {
+      stopDraw();
       altLine?.remove();
       line.remove();
       startMarker.remove();
       endMarker.remove();
-      tollMarkers.forEach((m) => m.remove());
+      tollMarkersRef.current.forEach((m) => m.remove());
+      tollMarkersRef.current = [];
     };
-  }, [route, alternativeRoute, onSelectRouteMode]);
+  }, [route, alternativeRoute, theme]);
 
-  // Pan and open popup when user clicks a toll row in TollList
+  // Highlight the plate for the toll row under the pointer / focus
+  useEffect(() => {
+    const plates = tollMarkersRef.current.map((m) => m.getElement()?.querySelector(".rw-toll"));
+    plates.forEach((el, i) => el?.classList.toggle("is-active", i === highlightIndex));
+    const marker = tollMarkersRef.current[highlightIndex];
+    marker?.setZIndexOffset(1100);
+    return () => marker?.setZIndexOffset(1000);
+  }, [highlightIndex, route]);
+
+  // Fly to a toll picked from the list and open its popup
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !focusedToll) return;
-    const marker = markersByTollNameRef.current.get(focusedToll.name);
-    if (marker) {
-      map.flyTo([focusedToll.lat, focusedToll.lng], Math.max(map.getZoom(), 11), {
-        duration: 0.6,
-      });
-      marker.openPopup();
-    }
+    const marker = tollMarkersRef.current[focusedToll.index];
+    if (!marker) return;
+    map.flyTo([focusedToll.toll.lat, focusedToll.toll.lng], Math.max(map.getZoom(), 11), {
+      duration: prefersReducedMotion() ? 0 : 0.6,
+    });
+    marker.openPopup();
   }, [focusedToll]);
 
   return (
-    <div className="bg-white border border-slate-200/90 rounded-xl shadow-xs overflow-hidden">
-      {/* Top Map HUD Bar */}
-      <div className="bg-slate-900 text-white px-4 py-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-800">
-        <div className="flex items-center gap-2.5">
-          <span className="w-2 h-2 rounded-full bg-amber-400" />
-          <span className="text-xs font-mono-num font-bold">
-            Cartographic Viewport
-          </span>
-          {route && (
-            <span className="text-xs font-mono-num text-slate-400 hidden sm:inline">
-              • {formatKm(route.distanceKm)} ({formatDuration(route.durationMin)})
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-4 text-[11px] font-mono-num text-slate-300">
-          <button
-            type="button"
-            onClick={() => onSelectRouteMode?.(false)}
-            className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${
-              route && route.avoidTolls ? "opacity-50 hover:opacity-100" : "font-bold text-white"
-            }`}
-          >
-            <span className="w-3 h-1 rounded-full bg-blue-500 inline-block" />
-            Tollway
-          </button>
-          <button
-            type="button"
-            onClick={() => onSelectRouteMode?.(true)}
-            className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${
-              route && !route.avoidTolls ? "opacity-50 hover:opacity-100" : "font-bold text-white"
-            }`}
-          >
-            <span className="w-3 h-1 rounded-full bg-amber-500 inline-block" />
-            Toll-Free
-          </button>
-          {route && (
-            <span className="px-2 py-0.5 rounded bg-slate-800 text-amber-400 border border-slate-700">
-              {route.tolls.length} {route.tolls.length === 1 ? "Plaza" : "Plazas"}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Map Canvas Container */}
-      <div className="relative w-full h-[500px] lg:h-[680px]">
-        <div ref={containerRef} className="w-full h-full z-10" />
-
-        {loading && (
-          <div className="absolute inset-0 z-20 bg-slate-950/35 backdrop-blur-[2px] flex items-center justify-center">
-            <div className="bg-slate-900 text-white px-5 py-3.5 rounded-xl shadow-xl border border-slate-700 flex items-center gap-3">
-              <svg
-                className="animate-spin h-5 w-5 text-amber-400"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8v8H4z"
-                />
-              </svg>
-              <span className="text-xs font-mono-num">
-                Plotting Dual Route Geometry...
-              </span>
-            </div>
-          </div>
-        )}
-      </div>
+    // isolate: keep Leaflet's pane z-indexes below the sheet
+    <div className="absolute inset-0 isolate">
+      <div ref={containerRef} className="h-full w-full" />
+      {loading && <div aria-hidden className="map-shimmer" />}
     </div>
   );
 }

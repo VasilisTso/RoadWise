@@ -1,7 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
+import { TbMapPin } from "react-icons/tb";
 import { useAutocomplete } from "../hooks/useAutocomplete";
-import { FaMapMarkerAlt } from "react-icons/fa";
 
+/**
+ * Place input with autocomplete (WAI-ARIA combobox, list autocomplete).
+ * ↑/↓ move through suggestions, Enter picks, Escape closes.
+ */
 function LocationField({
   id,
   label,
@@ -9,74 +13,116 @@ function LocationField({
   value,
   onTextChange,
   onSelect,
-  className = "",
-  badgeColor = "bg-blue-600",
-  rightAction = null,
+  onSubmit,
+  marker,
+  action = null,
 }) {
   const { suggestions, search, clear } = useAutocomplete();
+  const [activeIndex, setActiveIndex] = useState(-1);
   const open = suggestions.length > 0;
+  const listboxId = `${id}-listbox`;
+  const optionId = (i) => `${id}-option-${i}`;
+
+  const close = () => {
+    setActiveIndex(-1);
+    clear();
+  };
+
+  const pick = (s) => {
+    onSelect(s);
+    close();
+  };
+
+  const onKeyDown = (e) => {
+    if (e.key === "ArrowDown" && open) {
+      e.preventDefault();
+      setActiveIndex((i) => (i + 1) % suggestions.length);
+    } else if (e.key === "ArrowUp" && open) {
+      e.preventDefault();
+      setActiveIndex((i) => (i <= 0 ? suggestions.length - 1 : i - 1));
+    } else if (e.key === "Enter") {
+      if (open && activeIndex >= 0) {
+        e.preventDefault();
+        pick(suggestions[activeIndex]);
+      } else {
+        close();
+        onSubmit?.();
+      }
+    } else if (e.key === "Escape" && open) {
+      e.preventDefault();
+      close();
+    }
+  };
 
   return (
-    <div className={`relative ${className}`}>
-      <div className="flex items-center justify-between mb-1.5">
-        <label
-          htmlFor={id}
-          className="block text-xs font-bold text-slate-500"
-        >
+    <div className="relative">
+      <div className="flex items-baseline justify-between">
+        <label htmlFor={id} className="field-label">
           {label}
         </label>
-        {rightAction}
+        {action}
       </div>
 
-      <div className="relative flex items-center">
+      <div className="relative">
         <span
-          className={`w-2.5 h-2.5 rounded-full ${badgeColor} absolute left-3.5 pointer-events-none ring-4 ring-slate-100`}
-        />
+          aria-hidden
+          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2"
+        >
+          {marker}
+        </span>
         <input
           id={id}
           type="text"
           autoComplete="off"
+          spellCheck={false}
           role="combobox"
           aria-expanded={open}
           aria-autocomplete="list"
-          aria-controls={`${id}-listbox`}
-          className="w-full pl-9 pr-3.5 py-2.5 text-sm font-medium bg-slate-50 hover:bg-slate-100/70 focus:bg-white text-slate-900 border border-slate-200 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 rounded-lg outline-none transition-all placeholder:text-slate-400"
+          aria-controls={listboxId}
+          aria-activedescendant={open && activeIndex >= 0 ? optionId(activeIndex) : undefined}
+          className="field-input pl-10"
           placeholder={placeholder}
           value={value}
           onChange={(e) => {
             onTextChange(e.target.value);
+            setActiveIndex(-1);
             search(e.target.value);
           }}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") clear();
-          }}
-          onBlur={clear}
+          onKeyDown={onKeyDown}
+          onBlur={close}
         />
       </div>
 
       {open && (
         <ul
-          id={`${id}-listbox`}
+          id={listboxId}
           role="listbox"
-          className="absolute left-0 right-0 top-full mt-1 z-50 border border-slate-200 py-1.5 px-1.5 rounded-xl shadow-xl bg-white max-h-56 overflow-auto text-left divide-y divide-slate-100"
+          aria-label={`${label} suggestions`}
+          className="popover-in absolute inset-x-0 top-full z-50 mt-1 max-h-64 overflow-auto rounded-plate border border-line bg-surface-raised p-1 shadow-sheet"
         >
-          {suggestions.map((s, i) => (
-            <li
-              key={`${s.label}-${i}`}
-              role="option"
-              aria-selected="false"
-              // onMouseDown fires before the input's blur, so the pick isn't lost.
-              onMouseDown={(e) => {
-                e.preventDefault();
-                onSelect(s);
-                clear();
-              }}
-              className="px-3 py-2.5 hover:bg-slate-900 hover:text-white text-slate-700 text-xs font-medium cursor-pointer rounded-lg flex items-center gap-2.5 transition-colors group"
-            >
-              <FaMapMarkerAlt className="text-slate-400 group-hover:text-amber-400 shrink-0" />
-              <span className="truncate">{s.label}</span>
-            </li>
-          ))}
+          {suggestions.map((s, i) => {
+            const active = i === activeIndex;
+            return (
+              <li
+                key={`${s.label}-${i}`}
+                id={optionId(i)}
+                role="option"
+                aria-selected={active}
+                // onMouseDown fires before the input's blur, so the pick isn't lost
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  pick(s);
+                }}
+                onMouseEnter={() => setActiveIndex(i)}
+                className={`flex cursor-pointer items-center gap-2.5 rounded-[4px] px-2.5 py-2 text-sm ${
+                  active ? "bg-surface-sunken text-ink" : "text-ink-muted"
+                }`}
+              >
+                <TbMapPin aria-hidden className="size-4 shrink-0 text-ink-subtle" />
+                <span className="truncate">{s.label}</span>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

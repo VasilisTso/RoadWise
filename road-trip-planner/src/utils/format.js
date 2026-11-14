@@ -1,11 +1,16 @@
 export function formatDuration(totalMinutes) {
-  const total = Math.round(totalMinutes); // round first so we never get "1 h 60 m"
-  return `${Math.floor(total / 60)} h ${total % 60} m`;
+  const total = Math.round(Math.abs(totalMinutes)); // round first so we never get "1 h 60 min"
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (h === 0) return `${m} min`;
+  return `${h} h ${String(m).padStart(2, "0")} min`;
 }
 
 export const formatEuro = (amount) => `€${amount.toFixed(2)}`;
 
-export const formatKm = (km) => `${km.toFixed(1)} km`;
+export const formatKm = (km) => `${Math.round(km)} km`;
+
+export const pluralize = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
 export function escapeHtml(str) {
   return String(str).replace(
