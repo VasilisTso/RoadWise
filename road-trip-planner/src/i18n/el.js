@@ -143,14 +143,14 @@ const el = {
     tollFree: "Χωρίς διόδια",
     noBooths: "Χωρίς σταθμούς διοδίων",
     booths: { one: "{n}\u00a0σταθμός", other: "{n}\u00a0σταθμοί" },
-    oneWay: "μόνο μετάβαση",
+    oneWay: "χωρίς επιστροφή",
     return: "μετ' επιστροφής",
     stops: { one: "{n}\u00a0στάση", other: "{n}\u00a0στάσεις" },
     arrive: "άφιξη {time}",
     tabsLabel: "Λεπτομέρειες διαδρομής",
     tabCost: "Κόστος",
     tabTolls: "Διόδια",
-    tabTimeline: "Χρόνοι",
+    tabTimeline: "Ώρες",
   },
 
   tradeOff: {

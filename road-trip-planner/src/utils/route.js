@@ -43,7 +43,31 @@ function buildLegs(feature, cumKm, totalKm, totalMin) {
       durationMin: seg ? seg.duration / 60 : totalMin * share,
     });
   }
+
+  // Whole km / minutes for display that add up to the rounded total (largest remainder),
+  // so "187 km + 379 km" never sits under a "565 km" header.
+  const kmShown = roundToSum(legs.map((l) => l.distanceKm));
+  const minShown = roundToSum(legs.map((l) => l.durationMin));
+  legs.forEach((leg, i) => {
+    leg.kmShown = kmShown[i];
+    leg.minShown = minShown[i];
+  });
   return legs;
+}
+
+// Rounds each value to an integer so the parts sum to Math.round(total).
+export function roundToSum(values) {
+  const floors = values.map(Math.floor);
+  let rest = Math.round(values.reduce((a, b) => a + b, 0)) - floors.reduce((a, b) => a + b, 0);
+  const order = values
+    .map((v, i) => [v - floors[i], i])
+    .sort((a, b) => b[0] - a[0]);
+  for (const [, i] of order) {
+    if (rest <= 0) break;
+    floors[i] += 1;
+    rest -= 1;
+  }
+  return floors;
 }
 
 // Index of the leg a fractional vertex index falls in

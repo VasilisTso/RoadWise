@@ -118,6 +118,7 @@ function BottomSheet({ snap, onSnapChange, topOffset, label, scrollRef, children
         ref={scrollRef}
         className="sheet-scroll flex-1 overflow-y-auto overscroll-contain"
         // Let the content scroll to its end at any snap height
+        // (Sticky footers inside use bottom: 0; Chrome already insets the sticky area by this padding)
         style={{ paddingBottom: offsets[snap] }}
       >
         {children}

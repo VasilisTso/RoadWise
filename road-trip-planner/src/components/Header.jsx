@@ -126,7 +126,8 @@ function LanguageToggle() {
       type="button"
       onClick={toggleLang}
       lang={target}
-      aria-label={t("header.language.switchTo")}
+      // Name starts with the visible text (WCAG 2.5.3 label in name), then the full language name
+      aria-label={`${t("header.language.short")} · ${t("header.language.switchTo")}`}
       title={t("header.language.switchTo")}
       className="grid h-9 min-w-9 place-items-center rounded-plate px-1.5 text-[13px] font-semibold text-ink-muted transition-colors duration-150 hover:bg-surface-sunken hover:text-ink"
     >
@@ -144,7 +145,7 @@ function Header({ themeMode, onCycleTheme, history, onLoadTrip }) {
   return (
     <header className="relative z-[600] flex h-[52px] shrink-0 items-center justify-between border-b border-line bg-surface px-3 sm:px-4">
       <a href="/" aria-label={t("header.home")} className="flex items-center gap-2 rounded-plate text-ink no-underline">
-        <img src="/distance.png" alt="" width="24" height="24" className="brand-mark size-6" />
+        <img src="/distance-72.png" alt="" width="24" height="24" className="brand-mark size-6" />
         <span className="text-[17px] font-semibold tracking-[-0.01em]">RoadWise</span>
       </a>
 

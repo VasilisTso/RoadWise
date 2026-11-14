@@ -9,7 +9,7 @@ function LegMeta({ leg, index, count }) {
   return (
     <span className="num block text-[13px] text-ink-muted">
       {count > 1 ? `${t("timeline.leg", { n: index + 1 })} · ` : ""}
-      {fmt.km(leg.distanceKm)} · {fmt.duration(leg.durationMin)}
+      {fmt.km(leg.kmShown ?? leg.distanceKm)} · {fmt.duration(leg.minShown ?? leg.durationMin)}
     </span>
   );
 }
@@ -53,7 +53,7 @@ function Timeline({
                   type="button"
                   className="timeline__body timeline__toll"
                   data-active={highlightIndex === ev.index}
-                  onMouseEnter={() => onHoverToll?.(ev.index)}
+                  onPointerEnter={(e) => e.pointerType === "mouse" && onHoverToll?.(ev.index)}
                   onFocus={() => onHoverToll?.(ev.index)}
                   onBlur={() => onHoverToll?.(null)}
                   onClick={() => onSelectToll?.(ev.toll, ev.index)}

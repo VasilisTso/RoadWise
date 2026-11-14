@@ -44,7 +44,7 @@ Rules:
 - Labels use sentence case. No uppercase tracking and no monospace.
 - Numbers use the `.num` class (`tabular-nums lining-nums`) in the UI face.
 - Scale contrast carries the hierarchy: the trip total is display size (~3rem), labels are 12–13px, body is 15px.
-- Single font source: one Google Fonts `@import` in `index.css`, with preconnect in `index.html`.
+- Single font source: one Google Fonts `<link rel="stylesheet">` in `index.html` (after the preconnects), so it loads in parallel with the app CSS instead of chaining behind it.
 
 ## Shape & depth
 - `radius-plate` 6px (plates, inputs, markers). `radius-sheet` 16px (floating sheet).
@@ -52,7 +52,7 @@ Rules:
 
 ## Map markers
 - Start/end pins: `.rw-pin`. Start is a circle, end is a rounded square.
-- Toll: `.rw-toll` rate plate, with a green number tab and a price in `font-plate`. Size follows a fixed price ramp: `--sm` < €2 ≤ `--md` < €4 ≤ `--lg`. `.is-active` marks the highlighted plate.
+- Toll: `.rw-toll` rate plate, with a green number tab and a price in `font-plate`. Size follows a fixed price ramp: `--sm` < €1.50 ≤ `--md` < €3 ≤ `--lg` (10.5 / 12.5 / 15px, splitting the published car rates into thirds). `.is-active` marks the highlighted plate. `.is-compact` folds a plate to its number tab where it would overlap an earlier booth at the current zoom (recomputed on zoom); it opens fully again when highlighted.
 - Popups: `.rw-popup`, `__meta`, `__title`, `__row`, `__label`.
 
 ## Motion

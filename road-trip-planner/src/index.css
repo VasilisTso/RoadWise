@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Commissioner:wght@400..700&family=Fira+Sans+Condensed:wght@500;600;700&display=swap");
+/* Fonts (Commissioner + Fira Sans Condensed) load from a <link> in index.html, in parallel with this file */
 @import "tailwindcss";
 
 /*
@@ -369,6 +369,17 @@ a {
     color: var(--rw-ink-muted);
   }
 
+  /* Plan view's primary action, pinned to the visible bottom of the sheet */
+  .plan-submit {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    margin: -12px -20px;
+    padding: 12px 20px;
+    background: var(--rw-surface);
+    border-top: 1px solid var(--rw-line);
+  }
+
   /* ---------- Toll rate board (list) ---------- */
 
   .rate-board {
@@ -379,11 +390,44 @@ a {
   .rate-board > li + li {
     border-top: 1px solid var(--rw-line);
   }
-  .rate-row {
+  /* Board columns: number · booth · car · motorbike (header, rows and total share them) */
+  .rate-head,
+  .rate-row,
+  .rate-total {
     display: grid;
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: 22px minmax(0, 1fr) 4.25rem 3.75rem;
+    column-gap: 12px;
+  }
+  .rate-head {
+    padding: 0 0 6px;
+    color: var(--rw-ink-subtle);
+    border-bottom: 1px solid var(--rw-line-strong);
+  }
+  .rate-head [data-on="true"] {
+    color: var(--rw-ink);
+  }
+  .rate-cell {
+    display: flex;
+    justify-content: flex-end;
+    align-items: baseline;
+    white-space: nowrap;
+    font-size: 14px;
+  }
+  .rate-cell--on {
+    font-size: 19px;
+    line-height: 1.1;
+  }
+  .rate-total {
+    align-items: baseline;
+    margin-top: 4px;
+    padding-top: 10px;
+    border-top: 1px solid var(--rw-line-strong);
+  }
+  .rate-total > :first-child {
+    grid-column: 1 / 3;
+  }
+  .rate-row {
     align-items: center;
-    gap: 12px;
     padding: 10px 8px;
     margin: 0 -8px;
     width: calc(100% + 16px);
@@ -575,6 +619,8 @@ a {
 .leaflet-control-attribution {
   background: color-mix(in srgb, var(--rw-surface) 85%, transparent) !important;
   color: var(--rw-ink-muted);
+  padding: 2px 8px;
+  line-height: 1.4;
 }
 
 .leaflet-control-attribution a {
@@ -646,7 +692,7 @@ a {
   border-radius: var(--radius-plate);
   box-shadow: var(--shadow-marker);
   overflow: hidden;
-  font-size: 11px;
+  font-size: 10.5px;
   transition: transform 160ms var(--ease-out-expo), box-shadow 160ms var(--ease-out-expo);
 }
 
@@ -665,12 +711,16 @@ a {
 }
 
 .rw-toll--md {
-  font-size: 12px;
+  font-size: 12.5px;
 }
 
 .rw-toll--lg {
-  font-size: 13.5px;
+  font-size: 15px;
   border-width: 2px;
+}
+
+.rw-toll--lg .rw-toll__fee {
+  padding: 4px 7px;
 }
 
 .rw-toll.is-active {
@@ -681,6 +731,16 @@ a {
 
 .rw-toll.is-active .rw-toll__fee {
   background: var(--rw-tolled-soft);
+}
+
+/* Folded plate where neighbours would overlap: number tab only; full plate again when highlighted */
+.rw-toll.is-compact:not(.is-active) .rw-toll__fee {
+  display: none;
+}
+
+.rw-toll.is-compact:not(.is-active) .rw-toll__num {
+  min-width: 1.6em;
+  padding: 3px 4px;
 }
 
 /* Popup content for a toll plate */

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   TbAlertTriangle,
   TbArrowsUpDown,
@@ -74,6 +74,26 @@ function TripPlanner({
   const { waypoints } = trip;
   const [locating, setLocating] = useState(false);
   const [geoError, setGeoError] = useState(null);
+  const errorRef = useRef(null);
+
+  // A failed search (often from a shared link) can land below the fold: bring the message into view
+  useEffect(() => {
+    if (!error) return;
+    const el = errorRef.current;
+    const scroller = el?.closest(".sheet-scroll");
+    if (!el || !scroller) return;
+    // Measure against what is on screen: the mobile sheet's scrollport runs below the viewport,
+    // and the sticky Find route footer covers its bottom edge
+    const footer = scroller.querySelector(".plan-submit")?.offsetHeight ?? 0;
+    const box = scroller.getBoundingClientRect();
+    const visibleTop = Math.max(box.top, 0);
+    const visibleBottom = Math.min(box.bottom, window.innerHeight) - footer - 12;
+    const r = el.getBoundingClientRect();
+    const delta = r.bottom > visibleBottom ? r.bottom - visibleBottom : r.top < visibleTop ? r.top - visibleTop - 12 : 0;
+    if (!delta) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    scroller.scrollBy({ top: delta, behavior: reduce ? "auto" : "smooth" });
+  }, [error]);
 
   const handleUseMyLocation = () => {
     setGeoError(null);
@@ -193,6 +213,7 @@ function TripPlanner({
 
       {error && (
         <div
+          ref={errorRef}
           role="alert"
           className="flex items-start gap-2.5 rounded-plate bg-danger-soft px-3 py-2.5 text-sm text-danger"
         >
@@ -209,16 +230,19 @@ function TripPlanner({
         </div>
       )}
 
-      <button type="submit" disabled={loading} className="btn-primary">
-        {loading ? (
-          <>
-            <TbLoader2 aria-hidden className="size-[18px] animate-spin" />
-            {t("plan.finding")}
-          </>
-        ) : (
-          t("plan.find")
-        )}
-      </button>
+      {/* Sticky so the primary action stays in the first viewport above the cost settings */}
+      <div className="plan-submit">
+        <button type="submit" disabled={loading} className="btn-primary w-full">
+          {loading ? (
+            <>
+              <TbLoader2 aria-hidden className="size-[18px] animate-spin" />
+              {t("plan.finding")}
+            </>
+          ) : (
+            t("plan.find")
+          )}
+        </button>
+      </div>
 
       {!hasResults && <RecentTrips trips={recentTrips} onLoadTrip={onLoadTrip} />}
     </form>

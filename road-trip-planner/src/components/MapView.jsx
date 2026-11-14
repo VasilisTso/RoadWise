@@ -20,10 +20,11 @@ const FIT_MARGIN = 40;
 const prefersReducedMotion = () =>
   window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
-// Fixed price ramp for toll plates: bigger fee, bigger plate
+// Fixed price ramp for toll plates: bigger fee, bigger plate.
+// Steps split the published car rates into roughly thirds (< €1.50, €1.50–3, ≥ €3).
 function tollSizeClass(fee) {
-  if (fee >= 4) return "rw-toll--lg";
-  if (fee >= 2) return "rw-toll--md";
+  if (fee >= 3) return "rw-toll--lg";
+  if (fee >= 1.5) return "rw-toll--md";
   return "rw-toll--sm";
 }
 
@@ -91,6 +92,45 @@ const tollPopup = (toll, idx, t, fmt) => `<div class="rw-popup">
   <div class="rw-popup__row"><span>${escapeHtml(t("settings.car"))}</span><strong>${escapeHtml(fmt.euro(toll.car))}</strong></div>
   <div class="rw-popup__row"><span>${escapeHtml(t("settings.bike"))}</span><strong>${escapeHtml(fmt.euro(toll.bike))}</strong></div>
 </div>`;
+
+/**
+ * Where plates would overlap at the current zoom, later booths (in route order) fold to their
+ * number tab; the price stays in the tooltip, popup, list and timeline. Measured from layout
+ * sizes, not client rects, so the pop-in scale does not skew it.
+ */
+const PLATE_GAP = 2;
+function declutterTolls(map, markers, pins = []) {
+  // Start/stop/end pins are fixed obstacles: a plate that would cover one folds too
+  const boxes = pins.map((pin) => {
+    const el = pin.getElement();
+    const p = map.latLngToContainerPoint(pin.getLatLng());
+    const w = el?.offsetWidth ?? 24;
+    const h = el?.offsetHeight ?? 24;
+    return { x0: p.x - w / 2, x1: p.x + w / 2, y0: p.y - h / 2, y1: p.y + h / 2 };
+  });
+  const plates = markers.map((m) => m.getElement()?.querySelector(".rw-toll"));
+  plates.forEach((el) => el?.classList.remove("is-compact"));
+  markers.forEach((marker, i) => {
+    const el = plates[i];
+    if (!el) return;
+    const p = map.latLngToContainerPoint(marker.getLatLng());
+    const box = (w, h) => ({ x0: p.x - w / 2, x1: p.x + w / 2, y0: p.y - h / 2, y1: p.y + h / 2 });
+    const hits = (b) =>
+      boxes.some(
+        (o) =>
+          b.x0 < o.x1 + PLATE_GAP && b.x1 + PLATE_GAP > o.x0 && b.y0 < o.y1 + PLATE_GAP && b.y1 + PLATE_GAP > o.y0
+      );
+    let b = box(el.offsetWidth, el.offsetHeight);
+    const folded = hits(b);
+    if (folded) {
+      el.classList.add("is-compact");
+      b = box(el.offsetWidth, el.offsetHeight);
+    }
+    // Folded tabs sit under full plates, never on top of a price
+    marker.setZIndexOffset(folded ? 950 : 1000);
+    boxes.push(b);
+  });
+}
 
 const endpointPopup = (label, name) =>
   `<div class="rw-popup__label">${escapeHtml(label)}</div><div class="rw-popup__title">${escapeHtml(name)}</div>`;
@@ -224,7 +264,7 @@ function MapView({
         i === 0 ? t("map.start") : i === count - 1 ? t("map.destination") : t("map.stopN", { n: i });
       return L.marker(route.coords[vertex], {
         icon: createEndpointIcon(pointLetter(i), variant, delayFor(vertex / last)),
-        zIndexOffset: 900,
+        zIndexOffset: 1200, // pins stay above toll plates
         keyboard: false,
       })
         .bindPopup(endpointPopup(role, route.waypoints?.[i]?.label ?? ""))
@@ -246,7 +286,12 @@ function MapView({
         .addTo(map);
     });
 
+    const declutter = () => declutterTolls(map, tollMarkersRef.current, pointMarkers);
+    declutter();
+    map.on("zoomend", declutter);
+
     return () => {
+      map.off("zoomend", declutter);
       stopDraw();
       altLine?.remove();
       line.remove();
@@ -262,7 +307,10 @@ function MapView({
     plates.forEach((el, i) => el?.classList.toggle("is-active", i === highlightIndex));
     const marker = tollMarkersRef.current[highlightIndex];
     marker?.setZIndexOffset(1100);
-    return () => marker?.setZIndexOffset(1000);
+    return () => {
+      const folded = marker?.getElement()?.querySelector(".rw-toll")?.classList.contains("is-compact");
+      marker?.setZIndexOffset(folded ? 950 : 1000);
+    };
   }, [highlightIndex, route]);
 
   // Fly to a toll picked from the list and open its popup
