@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from "react";
 import L from "leaflet";
 import { escapeHtml, formatEuro } from "../utils/format";
 import { DESKTOP_QUERY } from "../hooks/useMediaQuery";
+import { pointLetter } from "../utils/labels";
 
 // Stadia Alidade Smooth: keyless on localhost; production needs the domain registered in Stadia
 const TILE_ATTRIBUTION =
@@ -42,13 +43,14 @@ function createTollIcon(index, fee, delayMs) {
   });
 }
 
-// Start / end pin
+// Start / stop / end pin
 function createEndpointIcon(letter, variant, delayMs) {
+  const size = variant === "stop" ? 22 : 26;
   return L.divIcon({
     className: "rw-pin-marker",
-    iconSize: [26, 26],
-    iconAnchor: [13, 13],
-    popupAnchor: [0, -14],
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+    popupAnchor: [0, -size / 2 - 1],
     html: `<div class="rw-pin rw-pin--${variant}${enterAttrs(delayMs)}">${letter}</div>`,
   });
 }
@@ -208,21 +210,22 @@ function MapView({
     }
 
     const last = route.coords.length - 1;
-    const startMarker = L.marker(route.coords[0], {
-      icon: createEndpointIcon("A", "start", delayFor(0)),
-      zIndexOffset: 900,
-      keyboard: false,
-    })
-      .bindPopup(endpointPopup("Start", route.start))
-      .addTo(map);
-
-    const endMarker = L.marker(route.coords[last], {
-      icon: createEndpointIcon("B", "end", delayFor(1)),
-      zIndexOffset: 900,
-      keyboard: false,
-    })
-      .bindPopup(endpointPopup("Destination", route.end))
-      .addTo(map);
+    // Pins sit on the route where each leg starts / ends (A, B, C… like the plan list)
+    const pointIdx = route.legs?.length
+      ? [route.legs[0].from, ...route.legs.map((leg) => leg.to)]
+      : [0, last];
+    const count = pointIdx.length;
+    const pointMarkers = pointIdx.map((vertex, i) => {
+      const variant = i === 0 ? "start" : i === count - 1 ? "end" : "stop";
+      const role = i === 0 ? "Start" : i === count - 1 ? "Destination" : `Stop ${i}`;
+      return L.marker(route.coords[vertex], {
+        icon: createEndpointIcon(pointLetter(i), variant, delayFor(vertex / last)),
+        zIndexOffset: 900,
+        keyboard: false,
+      })
+        .bindPopup(endpointPopup(role, route.waypoints?.[i]?.label ?? ""))
+        .addTo(map);
+    });
 
     const vehicle = route.vehicle || "car";
     tollMarkersRef.current = route.tolls.map((toll, idx) => {
@@ -243,8 +246,7 @@ function MapView({
       stopDraw();
       altLine?.remove();
       line.remove();
-      startMarker.remove();
-      endMarker.remove();
+      pointMarkers.forEach((m) => m.remove());
       tollMarkersRef.current.forEach((m) => m.remove());
       tollMarkersRef.current = [];
     };

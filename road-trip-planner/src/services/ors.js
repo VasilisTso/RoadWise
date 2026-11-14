@@ -3,7 +3,7 @@
 const BASE = "/api/ors";
 
 function messageForStatus(status) {
-  if (status === 404) return "No drivable route was found between these two locations.";
+  if (status === 404) return "No drivable route was found between these places.";
   if (status === 429) return "Too many requests. Please wait a moment and try again.";
   if (status === 401 || status === 403) {
     return "The routing service rejected our credentials. (Is ORS_API_KEY set on the server?)";
@@ -62,9 +62,9 @@ export async function reverseGeocode(lat, lng, signal) {
   }
 }
 
+// `coordsList`: 2–8 [lng, lat] points in driving order (start, stops…, destination)
 export async function fetchRoute(
-  startCoords,
-  endCoords,
+  coordsList,
   { avoidTolls = false, withTollInfo = false, signal } = {}
 ) {
   const data = await request(
@@ -74,8 +74,9 @@ export async function fetchRoute(
       headers: { "Content-Type": "application/json" },
       signal,
       body: JSON.stringify({
-        coordinates: [startCoords, endCoords], // ORS expects [lng, lat]
-        instructions: false,
+        coordinates: coordsList, // ORS expects [lng, lat]
+        // ORS only sends per-leg `segments` (distance/duration) with instructions on; ~8% larger
+        instructions: coordsList.length > 2,
         options: avoidTolls ? { avoid_features: ["tollways"] } : {},
         ...(withTollInfo ? { extra_info: ["tollways"] } : {}),
       }),

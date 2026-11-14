@@ -1,6 +1,7 @@
-import React, { useEffect, useId, useRef, useState } from "react";
+import React from "react";
 import {
   TbBrandGithub,
+  TbHistory,
   TbBrandLinkedin,
   TbDeviceDesktop,
   TbInfoCircle,
@@ -8,6 +9,8 @@ import {
   TbMoon,
   TbSun,
 } from "react-icons/tb";
+import HistoryPanel from "./HistoryPanel";
+import { usePopover } from "../hooks/usePopover";
 
 const THEME_META = {
   system: { icon: TbDeviceDesktop, label: "Theme: match system" },
@@ -30,39 +33,11 @@ function IconButton({ label, children, ...props }) {
 }
 
 function AboutMenu() {
-  const [open, setOpen] = useState(false);
-  const panelId = useId();
-  const rootRef = useRef(null);
-  const buttonRef = useRef(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onPointer = (e) => {
-      if (!rootRef.current?.contains(e.target)) setOpen(false);
-    };
-    const onKey = (e) => {
-      if (e.key === "Escape") {
-        setOpen(false);
-        buttonRef.current?.focus();
-      }
-    };
-    document.addEventListener("pointerdown", onPointer);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("pointerdown", onPointer);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
+  const { open, panelId, rootRef, triggerProps } = usePopover();
 
   return (
     <div ref={rootRef} className="relative">
-      <IconButton
-        ref={buttonRef}
-        label="About RoadWise"
-        aria-expanded={open}
-        aria-controls={panelId}
-        onClick={() => setOpen((o) => !o)}
-      >
+      <IconButton label="About RoadWise" {...triggerProps}>
         <TbInfoCircle aria-hidden className="size-5" />
       </IconButton>
 
@@ -120,8 +95,40 @@ function AboutMenu() {
   );
 }
 
-// Slim top bar: logo, theme, about. (Language and history join in later phases.)
-function Header({ themeMode, onCycleTheme }) {
+function HistoryMenu({ history, onLoadTrip }) {
+  const { open, setOpen, panelId, rootRef, triggerProps } = usePopover();
+
+  return (
+    <div ref={rootRef} className="relative">
+      <IconButton label="Your trips" {...triggerProps}>
+        <TbHistory aria-hidden className="size-5" />
+      </IconButton>
+
+      {open && (
+        <div
+          id={panelId}
+          role="region"
+          aria-label="Your trips"
+          className="popover-in absolute right-0 top-full z-[1000] mt-2 w-[min(360px,calc(100vw-24px))] rounded-plate border border-line bg-surface-raised p-2 pt-3 text-sm shadow-sheet"
+        >
+          <HistoryPanel
+            trips={history.trips}
+            onLoad={(trip) => {
+              setOpen(false);
+              onLoadTrip(trip);
+            }}
+            onToggleStar={history.toggleStar}
+            onRename={history.rename}
+            onRemove={history.remove}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Slim top bar: logo, trips, theme, about. (Language joins in Phase 4.)
+function Header({ themeMode, onCycleTheme, history, onLoadTrip }) {
   const theme = THEME_META[themeMode] ?? THEME_META.system;
   const ThemeIcon = theme.icon;
 
@@ -133,6 +140,7 @@ function Header({ themeMode, onCycleTheme }) {
       </a>
 
       <div className="flex items-center gap-0.5">
+        <HistoryMenu history={history} onLoadTrip={onLoadTrip} />
         <IconButton label={`${theme.label}. Change theme`} onClick={onCycleTheme}>
           <ThemeIcon aria-hidden className="size-5" />
         </IconButton>

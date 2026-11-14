@@ -2,15 +2,19 @@ import React, { useState } from "react";
 import { RouteHeader, ShareActions } from "./RouteSummary";
 import CostBreakdown from "./CostBreakdown";
 import TollList from "./TollList";
+import Timeline from "./Timeline";
 import Tabs from "./ui/Tabs";
 
-// Results view: total and route choice up top, then Cost · Tolls.
+// Results view: total and route choice up top, then Cost · Tolls · Timeline.
 function ResultsView({
   result,
   comparison,
   hasAlternative,
   settings,
   onSettingChange,
+  timeline,
+  departAt,
+  onDepartChange,
   onSelectRouteMode,
   onEdit,
   highlightIndex,
@@ -25,6 +29,7 @@ function ResultsView({
         result={result}
         comparison={comparison}
         hasAlternative={hasAlternative}
+        timeline={timeline}
         onSelectRouteMode={onSelectRouteMode}
         onEdit={onEdit}
       />
@@ -36,10 +41,29 @@ function ResultsView({
         tabs={[
           { id: "cost", label: "Cost" },
           { id: "tolls", label: "Tolls", count: result.tolls.length },
+          { id: "timeline", label: "Timeline" },
         ]}
       >
         {tab === "cost" ? (
-          <CostBreakdown result={result} settings={settings} onSettingChange={onSettingChange} />
+          <CostBreakdown
+            result={result}
+            comparison={comparison}
+            hasAlternative={hasAlternative}
+            settings={settings}
+            onSettingChange={onSettingChange}
+          />
+        ) : tab === "timeline" ? (
+          <Timeline
+            timeline={timeline}
+            result={result}
+            departAt={departAt}
+            onDepartChange={onDepartChange}
+            breaks={settings.breaks}
+            onBreaksChange={(v) => onSettingChange("breaks", v)}
+            highlightIndex={highlightIndex}
+            onHoverToll={onHoverToll}
+            onSelectToll={onSelectToll}
+          />
         ) : (
           <TollList
             tolls={result.tolls}

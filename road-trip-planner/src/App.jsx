@@ -8,49 +8,16 @@ import Sheet from "./components/Sheet";
 import { TOP_GAP_PX, visibleSheetHeight } from "./utils/sheet";
 import { useRoute } from "./hooks/useRoute";
 import { useSettings } from "./hooks/useSettings";
+import { useTrip } from "./hooks/useTrip";
+import { useTripHistory } from "./hooks/useTripHistory";
 import { useTheme } from "./hooks/useTheme";
 import { DESKTOP_QUERY, useMediaQuery } from "./hooks/useMediaQuery";
-import { calculateCosts } from "./utils/costs";
+import { buildComparison, buildTimeline } from "./utils/trip";
+import { buildUrlSearch, readUrlState } from "./utils/urlState";
 
 const TOP_BAR_PX = 52;
 const SHEET_GAP_PX = 16;
 const SHEET_WIDTH_PX = 400;
-
-function parseCoordParam(str) {
-  if (!str) return null;
-  const parts = str.split(",").map(Number);
-  if (parts.length === 2 && parts.every((n) => Number.isFinite(n))) {
-    return parts;
-  }
-  return null;
-}
-
-function getInitialUrlState() {
-  const params = new URLSearchParams(window.location.search);
-  return {
-    start: params.get("from") || "",
-    end: params.get("to") || "",
-    startCoords: parseCoordParam(params.get("sc")),
-    endCoords: parseCoordParam(params.get("ec")),
-    settings: getUrlSettings(params),
-  };
-}
-
-// Only settings explicitly present in the URL; they override stored settings.
-function getUrlSettings(params) {
-  const out = {};
-  const veh = params.get("veh");
-  if (veh === "car" || veh === "bike") out.vehicle = veh;
-  const fp = Number(params.get("fp"));
-  if (params.has("fp") && fp > 0) out.fuelPrice = fp;
-  const cons = Number(params.get("cons"));
-  if (params.has("cons") && cons > 0) out.consumption = cons;
-  const pax = parseInt(params.get("pax") ?? "", 10);
-  if (pax >= 1) out.passengers = pax;
-  if (params.has("avoid")) out.avoidTolls = params.get("avoid") === "1";
-  if (params.has("rt")) out.roundTrip = params.get("rt") === "1";
-  return out;
-}
 
 // Plan sits left of Results: each view enters from and leaves to its own side (fade only with reduced motion)
 const viewMotion = (dir, reduce) => ({
@@ -60,13 +27,13 @@ const viewMotion = (dir, reduce) => ({
 });
 
 function App() {
-  const initial = useMemo(() => getInitialUrlState(), []);
+  const initial = useMemo(() => readUrlState(), []);
 
-  const [start, setStart] = useState(initial.start);
-  const [end, setEnd] = useState(initial.end);
-  const [startCoords, setStartCoords] = useState(initial.startCoords);
-  const [endCoords, setEndCoords] = useState(initial.endCoords);
+  const trip = useTrip(initial);
+  const { waypoints, departAt, setWaypoints } = trip;
   const { settings, updateSetting } = useSettings(initial.settings);
+  const history = useTripHistory();
+  const recordTrip = history.record;
   const [view, setView] = useState("plan");
   const [snap, setSnap] = useState("half");
   const [focusedToll, setFocusedToll] = useState(null);
@@ -89,108 +56,62 @@ function App() {
     setSnap("half");
   }, []);
 
-  // A shared link with ?from=...&to=... loads its route straight away
-  useEffect(() => {
-    if (!didAutoSearch.current && initial.start.trim() && initial.end.trim()) {
-      didAutoSearch.current = true;
-      search({
-        start: initial.start,
-        end: initial.end,
-        startCoords: initial.startCoords,
-        endCoords: initial.endCoords,
-      }).then((payload) => {
-        if (payload) showResults();
+  // Runs a search; on success adopts the geocoded waypoints, saves it to history, shows results
+  const runSearch = useCallback(
+    async (list) => {
+      setFocusedToll(null);
+      setHighlightIndex(null);
+      const payload = await search(list);
+      if (!payload) return null;
+      setWaypoints(payload.waypoints);
+      const main = payload.withTolls;
+      recordTrip({
+        waypoints: payload.waypoints,
+        distanceKm: main.distanceKm,
+        durationMin: main.durationMin,
       });
+      showResults();
+      return payload;
+    },
+    [search, setWaypoints, recordTrip, showResults]
+  );
+
+  // A shared link (?wp=… or legacy ?from=&to=) loads its route straight away
+  useEffect(() => {
+    const wps = initial.waypoints;
+    if (!didAutoSearch.current && wps.length >= 2 && wps[0].label && wps[wps.length - 1].label) {
+      didAutoSearch.current = true;
+      runSearch(trip.waypoints);
     }
-  }, [initial, search, showResults]);
+  }, [initial, runSearch, trip.waypoints]);
 
   // Keep the URL query string in sync with active route & settings so links are always shareable
   useEffect(() => {
     if (!routeData) return;
-    const params = new URLSearchParams();
-    params.set("from", routeData.start);
-    params.set("to", routeData.end);
-    if (routeData.startCoords) {
-      params.set("sc", routeData.startCoords.map((n) => n.toFixed(5)).join(","));
-    }
-    if (routeData.endCoords) {
-      params.set("ec", routeData.endCoords.map((n) => n.toFixed(5)).join(","));
-    }
-    params.set("veh", settings.vehicle);
-    params.set("fp", String(settings.fuelPrice));
-    params.set("cons", String(settings.consumption));
-    params.set("pax", String(settings.passengers));
-    if (settings.avoidTolls) params.set("avoid", "1");
-    if (settings.roundTrip) params.set("rt", "1");
-
-    const newUrl = `${window.location.pathname}?${params.toString()}`;
-    window.history.replaceState(null, "", newUrl);
-  }, [routeData, settings]);
+    const query = buildUrlSearch({ waypoints: routeData.waypoints, departAt, settings });
+    window.history.replaceState(null, "", `${window.location.pathname}${query}`);
+  }, [routeData, departAt, settings]);
 
   // Costs recalculate locally: settings changes never cost a request
-  const comparison = useMemo(() => {
-    if (!routeData) return null;
-
-    const buildOption = (branch, isAvoidTolls) => {
-      if (!branch) return null;
-      const costs = calculateCosts({
-        distanceKm: branch.distanceKm,
-        durationMin: branch.durationMin,
-        consumption: settings.consumption,
-        fuelPrice: settings.fuelPrice,
-        tolls: branch.tolls,
-        vehicle: settings.vehicle,
-        passengers: settings.passengers,
-        roundTrip: settings.roundTrip,
-      });
-      return {
-        start: routeData.start,
-        end: routeData.end,
-        startCoords: routeData.startCoords,
-        endCoords: routeData.endCoords,
-        avoidTolls: isAvoidTolls,
-        vehicle: settings.vehicle,
-        passengers: settings.passengers,
-        roundTrip: settings.roundTrip,
-        coords: branch.coords,
-        tolls: branch.tolls,
-        baseDistanceKm: branch.distanceKm,
-        baseDurationMin: branch.durationMin,
-        distanceKm: costs.effectiveDistanceKm,
-        durationMin: costs.effectiveDurationMin,
-        ...costs,
-      };
-    };
-
-    const withTolls = buildOption(routeData.withTolls, false);
-    const withoutTolls = buildOption(routeData.withoutTolls, true);
-    const active = settings.avoidTolls ? withoutTolls : withTolls;
-    const alternative = settings.avoidTolls ? withTolls : withoutTolls;
-
-    return { withTolls, withoutTolls, active, alternative };
-  }, [routeData, settings]);
+  const comparison = useMemo(() => buildComparison(routeData, settings), [routeData, settings]);
 
   // useRoute falls back to one branch for both when a variant fails
   const hasAlternative = Boolean(routeData && routeData.withTolls !== routeData.withoutTolls);
   const activeResult = comparison?.active ?? null;
   const showingResults = view === "results" && Boolean(activeResult);
 
-  const handleSearch = async () => {
-    setFocusedToll(null);
-    setHighlightIndex(null);
-    const payload = await search({ start, end, startCoords, endCoords });
-    if (payload) {
-      setStartCoords(payload.startCoords);
-      setEndCoords(payload.endCoords);
-      showResults();
-    }
-  };
+  // Clock times for the active route; recomputed when departure or breaks change, no refetch
+  const timeline = useMemo(
+    () => (activeResult ? buildTimeline(activeResult, { departAt, breaks: settings.breaks }) : null),
+    [activeResult, departAt, settings.breaks]
+  );
 
-  const handleSwapWaypoints = () => {
-    setStart(end);
-    setStartCoords(endCoords);
-    setEnd(start);
-    setEndCoords(startCoords);
+  const handleSearch = () => runSearch(waypoints);
+
+  // Saved trip: put its places back and look it up again
+  const handleLoadTrip = (saved) => {
+    setWaypoints(saved.waypoints);
+    runSearch(saved.waypoints);
   };
 
   const handleSelectToll = useCallback(
@@ -214,7 +135,12 @@ function App() {
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-ground text-ink">
-      <Header themeMode={themeMode} onCycleTheme={cycleTheme} />
+      <Header
+        themeMode={themeMode}
+        onCycleTheme={cycleTheme}
+        history={history}
+        onLoadTrip={handleLoadTrip}
+      />
 
       <main className="relative flex-1">
         <MapView
@@ -247,6 +173,9 @@ function App() {
                   hasAlternative={hasAlternative}
                   settings={settings}
                   onSettingChange={updateSetting}
+                  timeline={timeline}
+                  departAt={departAt}
+                  onDepartChange={trip.setDepartAt}
                   onSelectRouteMode={handleSelectRouteMode}
                   onEdit={() => setView("plan")}
                   highlightIndex={highlightIndex}
@@ -257,25 +186,7 @@ function App() {
             ) : (
               <motion.div key="plan" {...viewMotion(-1, reduceMotion)}>
                 <TripPlanner
-                  start={start}
-                  end={end}
-                  onStartChange={(text) => {
-                    setStart(text);
-                    setStartCoords(null);
-                  }}
-                  onEndChange={(text) => {
-                    setEnd(text);
-                    setEndCoords(null);
-                  }}
-                  onStartSelect={(s) => {
-                    setStart(s.label);
-                    setStartCoords(s.coords);
-                  }}
-                  onEndSelect={(s) => {
-                    setEnd(s.label);
-                    setEndCoords(s.coords);
-                  }}
-                  onSwap={handleSwapWaypoints}
+                  trip={trip}
                   settings={settings}
                   onSettingChange={updateSetting}
                   onSearch={handleSearch}
@@ -284,6 +195,8 @@ function App() {
                   onDismissError={clearError}
                   hasResults={Boolean(activeResult)}
                   onShowResults={showResults}
+                  recentTrips={history.trips}
+                  onLoadTrip={handleLoadTrip}
                 />
               </motion.div>
             )}

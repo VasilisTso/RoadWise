@@ -409,6 +409,102 @@ a {
     border-radius: 4px;
   }
 
+  /* ---------- Waypoint badges (match the map pins) ---------- */
+
+  .wp-badge {
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    font-family: var(--font-plate);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--rw-ink-inverse);
+    background: var(--rw-ink);
+    border: 1.5px solid var(--rw-ink);
+    border-radius: 9999px;
+  }
+  .wp-badge--end {
+    border-radius: 4px;
+  }
+  .wp-badge--stop {
+    color: var(--rw-ink);
+    background: var(--rw-surface-raised);
+  }
+
+  /* ---------- Timeline (depart → tolls / stops → arrive) ---------- */
+
+  .timeline {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .timeline__item {
+    position: relative;
+    display: grid;
+    grid-template-columns: 3.5rem 28px 1fr;
+    align-items: start;
+    column-gap: 8px;
+  }
+  /* the road between marks */
+  .timeline__item:not(:last-child)::before {
+    content: "";
+    position: absolute;
+    top: 14px;
+    bottom: -14px;
+    left: calc(3.5rem + 8px + 13px);
+    width: 2px;
+    background: var(--rw-line-strong);
+  }
+  .timeline__time {
+    padding-top: 9px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--rw-ink-muted);
+    text-align: right;
+  }
+  .timeline__item--point .timeline__time {
+    font-weight: 600;
+    color: var(--rw-ink);
+  }
+  .timeline__mark {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    height: 36px;
+  }
+  .timeline__mark .rate-row__num {
+    min-width: 20px;
+    height: 20px;
+    font-size: 11.5px;
+    box-shadow: 0 0 0 3px var(--rw-surface);
+  }
+  .timeline__mark .wp-badge {
+    box-shadow: 0 0 0 3px var(--rw-surface);
+  }
+  .timeline__body {
+    min-width: 0;
+    padding: 8px 0 12px;
+  }
+  .timeline__toll {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 12px;
+    width: calc(100% + 16px);
+    margin: 0 -8px 6px;
+    padding: 6px 8px;
+    text-align: left;
+    border-radius: var(--radius-plate);
+    transition: background-color 120ms var(--ease-out-expo);
+  }
+  .timeline__toll:hover,
+  .timeline__toll[data-active="true"] {
+    background: var(--rw-tolled-soft);
+  }
+
   /* ---------- Popovers ---------- */
 
   .popover-in {
@@ -520,6 +616,15 @@ a {
 .rw-pin--end {
   background: var(--rw-ink);
   border-radius: 6px;
+}
+
+.rw-pin--stop {
+  width: 22px;
+  height: 22px;
+  font-size: 12px;
+  color: var(--rw-ink);
+  background: var(--rw-surface-raised);
+  border-color: var(--rw-ink);
 }
 
 /* Toll marker: a small posted rate plate. Size follows a fixed price ramp. */

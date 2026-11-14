@@ -1,14 +1,8 @@
 import React from "react";
-import { TbCar, TbMotorbike } from "react-icons/tb";
 import AnimatedNumber from "./ui/AnimatedNumber";
-import SegmentedControl from "./ui/SegmentedControl";
-import TripSettings from "./TripSettings";
-import { formatEuro, formatKm, pluralize } from "../utils/format";
-
-const VEHICLES = [
-  { value: "car", label: "Car", icon: TbCar },
-  { value: "bike", label: "Motorbike", icon: TbMotorbike },
-];
+import TripSettings, { VehicleFields } from "./TripSettings";
+import { FUEL_TYPES } from "../data/fuel";
+import { formatEuro, formatKg, formatKm, pluralize } from "../utils/format";
 
 function Row({ label, proof, amount, strong = false }) {
   return (
@@ -26,8 +20,48 @@ function Row({ label, proof, amount, strong = false }) {
   );
 }
 
+// CO₂ for the chosen route, per person, and the other route for comparison. Always an estimate.
+function Emissions({ result, comparison, hasAlternative, fuel }) {
+  const other = hasAlternative ? comparison.alternative : null;
+  const factor =
+    fuel.energy === "electricity"
+      ? `Estimate from the Greek grid average, ${fuel.co2PerUnit} kg CO₂ per kWh.`
+      : `Estimate, ${fuel.co2PerUnit} kg CO₂ per litre of ${fuel.label.toLowerCase()} burned.`;
+
+  return (
+    <section aria-labelledby="co2-heading">
+      <h3 id="co2-heading" className="text-[15px] font-semibold text-ink">
+        CO₂
+      </h3>
+      <dl className="mt-1.5 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-sm">
+        <dt className="text-ink-muted">This route</dt>
+        <dd className="num text-right font-medium text-ink">
+          <AnimatedNumber value={result.co2Kg} format={formatKg} />
+          {result.passengers > 1 && (
+            <span className="font-normal text-ink-muted">
+              {" "}
+              · <AnimatedNumber value={result.co2PerPassenger} format={formatKg} /> each
+            </span>
+          )}
+        </dd>
+        {other && (
+          <>
+            <dt className="text-ink-muted">{other.avoidTolls ? "Toll-free route" : "Route with tolls"}</dt>
+            <dd className="num text-right text-ink-muted">
+              <AnimatedNumber value={other.co2Kg} format={formatKg} />
+              {result.passengers > 1 && <> · <AnimatedNumber value={other.co2PerPassenger} format={formatKg} /> each</>}
+            </dd>
+          </>
+        )}
+      </dl>
+      <p className="mt-1.5 text-[13px] text-ink-subtle">{factor}</p>
+    </section>
+  );
+}
+
 // Cost tab: each figure next to the math behind it, then the inputs to adjust it.
-function CostBreakdown({ result, settings, onSettingChange }) {
+function CostBreakdown({ result, comparison, hasAlternative, settings, onSettingChange }) {
+  const fuel = FUEL_TYPES[settings.fuelType] ?? FUEL_TYPES.petrol;
   const booths = result.tolls.length;
   const tollProof =
     booths === 0
@@ -38,13 +72,15 @@ function CostBreakdown({ result, settings, onSettingChange }) {
     <div className="flex flex-col gap-6">
       <div>
         <Row
-          label="Fuel"
-          proof={`${formatKm(result.distanceKm)} × ${settings.consumption} L/100 km × ${formatEuro(settings.fuelPrice)}/L`}
-          amount={result.fuelCost}
+          label={fuel.energy === "electricity" ? "Charging" : "Fuel"}
+          proof={`${formatKm(result.distanceKm)} × ${settings.consumption} ${fuel.consumptionUnit} × ${formatEuro(settings.fuelPrice)}/${fuel.unit}`}
+          amount={result.energyCost}
         />
         <Row label="Tolls" proof={tollProof} amount={result.tollCost} />
         <Row label="Total" amount={result.totalCost} strong />
       </div>
+
+      <Emissions result={result} comparison={comparison} hasAlternative={hasAlternative} fuel={fuel} />
 
       <section aria-labelledby="adjust-heading" className="flex flex-col gap-4">
         <div>
@@ -53,12 +89,7 @@ function CostBreakdown({ result, settings, onSettingChange }) {
           </h3>
           <p className="text-[13px] text-ink-muted">The cost updates as you change these.</p>
         </div>
-        <SegmentedControl
-          label="Vehicle"
-          value={settings.vehicle}
-          onChange={(v) => onSettingChange("vehicle", v)}
-          options={VEHICLES}
-        />
+        <VehicleFields settings={settings} onChange={onSettingChange} />
         <TripSettings settings={settings} onChange={onSettingChange} idPrefix="results-" />
       </section>
     </div>

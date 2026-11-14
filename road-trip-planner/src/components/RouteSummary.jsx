@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { TbCheck, TbCopy, TbPencil, TbShare } from "react-icons/tb";
 import AnimatedNumber from "./ui/AnimatedNumber";
 import { useRovingRadio } from "../hooks/useRovingRadio";
-import { formatDuration, formatEuro, formatKm, pluralize } from "../utils/format";
+import { routeTitle } from "../utils/labels";
+import { formatDuration, formatEuro, formatKm, formatTime, pluralize } from "../utils/format";
 
 const ROUTE_MODES = [false, true]; // avoidTolls
 
@@ -66,11 +67,11 @@ function useFlag() {
 
 function splitText(r) {
   return [
-    `RoadWise · ${r.start} → ${r.end}`,
+    `RoadWise · ${routeTitle(r.waypoints)}`,
     `${formatKm(r.distanceKm)}, ${formatDuration(r.durationMin)}, ${
       r.avoidTolls ? "toll-free" : "with tolls"
     }, ${r.roundTrip ? "return" : "one way"}`,
-    `Fuel ${formatEuro(r.fuelCost)} + tolls ${formatEuro(r.tollCost)} = ${formatEuro(r.totalCost)}`,
+    `${r.fuelType === "ev" ? "Charging" : "Fuel"} ${formatEuro(r.energyCost)} + tolls ${formatEuro(r.tollCost)} = ${formatEuro(r.totalCost)}`,
     r.passengers > 1 ? `${formatEuro(r.perPassenger)} each for ${r.passengers} people` : null,
     window.location.href,
   ]
@@ -79,20 +80,30 @@ function splitText(r) {
 }
 
 // Results header: route, the total at display size, per person, and the route choice.
-export function RouteHeader({ result, comparison, hasAlternative, onSelectRouteMode, onEdit }) {
+export function RouteHeader({ result, comparison, hasAlternative, timeline, onSelectRouteMode, onEdit }) {
   const radioProps = useRovingRadio(ROUTE_MODES, result.avoidTolls, onSelectRouteMode);
   const { withTolls, withoutTolls } = comparison;
+  const stops = result.waypoints.length - 2;
 
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-[17px] font-semibold leading-snug text-ink text-balance">
-            {result.start} <span className="text-ink-subtle">→</span> {result.end}
+            {routeTitle(result.waypoints)
+              .split(" → ")
+              .map((part, i) => (
+                <React.Fragment key={i}>
+                  {i > 0 && <span className="text-ink-subtle"> → </span>}
+                  {part}
+                </React.Fragment>
+              ))}
           </h2>
           <p className="num mt-0.5 text-[13px] text-ink-muted">
             {formatKm(result.distanceKm)} · {formatDuration(result.durationMin)} ·{" "}
             {result.roundTrip ? "return" : "one way"}
+            {stops > 0 && ` · ${pluralize(stops, "stop", "stops")}`}
+            {timeline && ` · arrive ${formatTime(timeline.arrival, timeline.departure)}`}
           </p>
         </div>
         <button
@@ -171,7 +182,7 @@ export function ShareActions({ result }) {
     const url = window.location.href;
     if (navigator.share) {
       try {
-        await navigator.share({ title: `RoadWise: ${result.start} → ${result.end}`, url });
+        await navigator.share({ title: `RoadWise: ${routeTitle(result.waypoints)}`, url });
         return;
       } catch {
         // cancelled or unsupported: fall back to copying the link

@@ -2,32 +2,62 @@ import React, { useState } from "react";
 import {
   TbAlertTriangle,
   TbArrowsUpDown,
-  TbCar,
   TbChevronLeft,
+  TbChevronRight,
   TbCurrentLocation,
   TbLoader2,
-  TbMotorbike,
+  TbStarFilled,
   TbX,
 } from "react-icons/tb";
-import LocationField from "./LocationField";
-import TripSettings from "./TripSettings";
-import SegmentedControl from "./ui/SegmentedControl";
+import WaypointList from "./WaypointList";
+import TripSettings, { DepartureFields, VehicleFields } from "./TripSettings";
 import { reverseGeocode } from "../services/ors";
+import { tripTitle } from "../hooks/useTripHistory";
+import { formatDuration, formatKm, formatRelative } from "../utils/format";
 
-const VEHICLES = [
-  { value: "car", label: "Car", icon: TbCar },
-  { value: "bike", label: "Motorbike", icon: TbMotorbike },
-];
+const QUICK_PICKS = 4;
 
-// Plan view: where from, where to, what you drive, who shares the cost.
+// Recent trips as one-tap picks in the empty Plan view (starred first)
+function RecentTrips({ trips, onLoadTrip }) {
+  const picks = [...trips].sort((a, b) => b.starred - a.starred).slice(0, QUICK_PICKS);
+  if (picks.length === 0) return null;
+  return (
+    <section aria-labelledby="recent-heading">
+      <h2 id="recent-heading" className="text-[15px] font-semibold text-ink">
+        Recent trips
+      </h2>
+      <ul className="mt-2 flex flex-col">
+        {picks.map((trip) => (
+          <li key={trip.id} className="border-t border-line first:border-t-0">
+            <button
+              type="button"
+              onClick={() => onLoadTrip(trip)}
+              className="-mx-2 grid w-[calc(100%+16px)] grid-cols-[1fr_auto] items-center gap-3 rounded-plate px-2 py-2.5 text-left hover:bg-surface-sunken"
+            >
+              <span className="min-w-0">
+                <span className="flex items-center gap-1.5 font-medium text-ink">
+                  {trip.starred && (
+                    <TbStarFilled aria-label="Starred" className="size-3.5 shrink-0 text-free-line" />
+                  )}
+                  <span className="truncate">{tripTitle(trip)}</span>
+                </span>
+                <span className="num block truncate text-[13px] text-ink-muted">
+                  {formatKm(trip.distanceKm)} · {formatDuration(trip.durationMin)} ·{" "}
+                  {formatRelative(trip.savedAt)}
+                </span>
+              </span>
+              <TbChevronRight aria-hidden className="size-4 text-ink-subtle" />
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+// Plan view: where from, where to (and via), when, what you drive, who shares the cost.
 function TripPlanner({
-  start,
-  end,
-  onStartChange,
-  onEndChange,
-  onStartSelect,
-  onEndSelect,
-  onSwap,
+  trip,
   settings,
   onSettingChange,
   onSearch,
@@ -36,7 +66,10 @@ function TripPlanner({
   onDismissError,
   hasResults = false,
   onShowResults,
+  recentTrips = [],
+  onLoadTrip,
 }) {
+  const { waypoints } = trip;
   const [locating, setLocating] = useState(false);
   const [geoError, setGeoError] = useState(null);
 
@@ -54,7 +87,7 @@ function TripPlanner({
           const { latitude, longitude } = pos.coords;
           const label = await reverseGeocode(latitude, longitude);
           // ORS expects [lng, lat]
-          onStartSelect({ label, coords: [longitude, latitude] });
+          trip.select(waypoints[0].id, { label, coords: [longitude, latitude] });
         } catch {
           setGeoError("Found you, but couldn't name the place. Type it instead.");
         } finally {
@@ -102,17 +135,16 @@ function TripPlanner({
         </div>
       )}
 
-      <fieldset className="relative flex flex-col gap-3">
-        <legend className="sr-only">Route</legend>
-        <LocationField
-          id="start-location"
-          label="From"
-          placeholder="Town, address or place"
-          marker={<span className="block size-2.5 rounded-full border-2 border-ink" />}
-          value={start}
-          onTextChange={onStartChange}
-          onSelect={onStartSelect}
-          action={
+      <div className="flex flex-col gap-3">
+        <WaypointList
+          waypoints={waypoints}
+          onTextChange={trip.setLabel}
+          onSelect={trip.select}
+          onAdd={trip.addStop}
+          onRemove={trip.remove}
+          onReorder={trip.reorder}
+          onMove={trip.move}
+          firstAction={
             <button
               type="button"
               onClick={handleUseMyLocation}
@@ -127,25 +159,17 @@ function TripPlanner({
               {locating ? "Locating…" : "Use my location"}
             </button>
           }
-        />
-
-        <LocationField
-          id="end-location"
-          label="To"
-          placeholder="Town, address or place"
-          marker={<span className="block size-2.5 rounded-[2px] bg-ink" />}
-          value={end}
-          onTextChange={onEndChange}
-          onSelect={onEndSelect}
-          action={
-            <button
-              type="button"
-              onClick={onSwap}
-              className="-mr-1 inline-flex items-center gap-1 rounded-plate px-1 py-0.5 text-[13px] font-medium text-ink-muted hover:text-ink"
-            >
-              <TbArrowsUpDown aria-hidden className="size-4" />
-              Swap
-            </button>
+          lastAction={
+            waypoints.length === 2 ? (
+              <button
+                type="button"
+                onClick={trip.reverse}
+                className="-mr-1 inline-flex items-center gap-1 rounded-plate px-1 py-0.5 text-[13px] font-medium text-ink-muted hover:text-ink"
+              >
+                <TbArrowsUpDown aria-hidden className="size-4" />
+                Swap
+              </button>
+            ) : null
           }
         />
 
@@ -154,14 +178,17 @@ function TripPlanner({
             {geoError}
           </p>
         )}
-      </fieldset>
+      </div>
 
-      <SegmentedControl
-        label="Vehicle"
-        value={settings.vehicle}
-        onChange={(v) => onSettingChange("vehicle", v)}
-        options={VEHICLES}
+      <DepartureFields
+        idPrefix="plan-"
+        departAt={trip.departAt}
+        onDepartChange={trip.setDepartAt}
+        breaks={settings.breaks}
+        onBreaksChange={(v) => onSettingChange("breaks", v)}
       />
+
+      <VehicleFields settings={settings} onChange={onSettingChange} />
 
       <TripSettings settings={settings} onChange={onSettingChange} idPrefix="plan-" />
 
@@ -193,6 +220,8 @@ function TripPlanner({
           "Find route"
         )}
       </button>
+
+      {!hasResults && <RecentTrips trips={recentTrips} onLoadTrip={onLoadTrip} />}
     </form>
   );
 }
