@@ -1,37 +1,58 @@
-# RoadWise Route Planner Web App
+# RoadWise
 
-A modern web application for planning car or motorcycle trips in Greece. It calculates routes, estimates fuel costs, identifies tolls along the way, and provides per-passenger cost. Built with React, Leaflet, and OpenRouteService API.
+Plan a drive on Greek motorways and see what it really costs: every toll booth on the route with its published price, plus fuel or charging, next to the toll-free alternative and the time it costs.
+
+![RoadWise: Athens to Thessaloniki with 9 toll booths on the map and the trip cost in the sheet](road-trip-planner/docs/screenshots/desktop-light.webp)
+
+<table>
+  <tr>
+    <td width="50%"><img src="road-trip-planner/docs/screenshots/desktop-tolls.webp" alt="Tolls tab: each booth with car and motorbike rates"></td>
+    <td width="50%"><img src="road-trip-planner/docs/screenshots/desktop-dark.webp" alt="Dark theme with dark map tiles"></td>
+  </tr>
+  <tr>
+    <td align="center">Booth-by-booth tolls</td>
+    <td align="center">Dark theme</td>
+  </tr>
+</table>
+
+<p align="center">
+  <img src="road-trip-planner/docs/screenshots/mobile-light.webp" alt="Phone layout with the bottom sheet, light theme" width="260">
+  &nbsp;
+  <img src="road-trip-planner/docs/screenshots/mobile-dark.webp" alt="Phone layout with the bottom sheet, dark theme" width="260">
+</p>
 
 ## Features
 
-- Dynamic Route Planning: Enter start and end locations, choose route options (with or without tolls).
+- **Map-first layout.** The map fills the screen. One sheet holds planning and results: it floats on the left on desktop and becomes a draggable bottom sheet on phones.
+- **Tolled vs toll-free.** Each search fetches both routes, so you can compare total cost, time and distance side by side and switch with one tap.
+- **Booth-by-booth tolls.** Each toll booth on the route is shown on the map and in a list, with its name, motorway and price for your vehicle. Prices are published rates and can change.
+- **Multi-stop trips.** Up to 6 points (start, stops, destination). Drag or use the keyboard to reorder them. You get distance and time per leg.
+- **Fuel types and EV.** Petrol, diesel, LPG or electric (car and motorbike), each with default prices and consumption you can change. Shows CO₂ per trip and per person for both routes (an estimate).
+- **Departure time and ETA.** Pick when you leave and see arrival times at each stop and toll booth, with optional breaks (15 min every 2 h of driving).
+- **Cost split.** Total and per-person cost, one way or return. Copy the split or share a link.
+- **Saved and recent trips.** The last 8 searches are kept on your device. Star a trip to keep it, and rename or delete trips.
+- **Shareable links.** The URL holds the route and settings, so a link reopens the same trip.
+- **English and Greek**, with locale-aware numbers, currency, distances and times.
+- **Light and dark themes**, following the system or set by hand. Map tiles switch with the theme.
+- **Accessible.** Works by keyboard, labels for screen readers, and respects `prefers-reduced-motion`.
 
-- Autocomplete Locations: Location suggestions powered by OpenRouteService.
+## Tech stack
 
-- Toll Detection: Automatically highlights tolls along the route.
+- React 19 + Vite 7
+- Tailwind CSS v4
+- Leaflet with Stadia Maps tiles
+- framer-motion for the sheet, view transitions and reordering
+- OpenRouteService for geocoding and directions, via a Vercel serverless proxy that keeps the API key on the server
 
-- Fuel Cost & Consumption: Input fuel price and consumption to calculate total cost.
+## Getting started
 
-- Per-Passenger Cost: Split total cost by number of passengers.
+The app lives in [`road-trip-planner/`](road-trip-planner/).
 
-- Interactive Map: Displays the calculated route with markers for tolls.
+```sh
+cd road-trip-planner
+npm install
+echo "ORS_API_KEY=your-openrouteservice-key" > .env
+npm run dev
+```
 
-- Responsive Design: Works on desktop and mobile with a clean modern UI.
-
-- Loading Feedback: Visual indicator while routes are being fetched.
-
-## Tech Stack
-
-- React 18 – UI framework
-
-- Tailwind CSS – Utility-first styling
-
-- Leaflet – Interactive maps
-
-- OpenRouteService API – Geocoding, routing, and autocomplete
-
-
-# Preview
-
-<img width="1902" height="785" alt="Screenshot 2025-11-24 184615" src="https://github.com/user-attachments/assets/d00404bd-ffa8-413b-9214-195a135ac7db" />
-<img width="1899" height="910" alt="Screenshot 2025-11-24 184632" src="https://github.com/user-attachments/assets/2dc7f710-81ca-4800-ac07-ee62fa81de52" />
+See [`road-trip-planner/README.md`](road-trip-planner/README.md) for scripts, project layout and deployment notes, and [`road-trip-planner/DESIGN.md`](road-trip-planner/DESIGN.md) for the design system.
