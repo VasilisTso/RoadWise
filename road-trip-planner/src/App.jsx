@@ -1,225 +1,214 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion"; // eslint-disable-line no-unused-vars
 import Header from "./components/Header";
-import Hero from "./components/Hero";
 import TripPlanner from "./components/TripPlanner";
+import ResultsView from "./components/ResultsView";
 import MapView from "./components/MapView";
-import TollList from "./components/TollList";
-import RouteSummary from "./components/RouteSummary";
-import Footer from "./components/Footer";
+import Sheet from "./components/Sheet";
+import { TOP_GAP_PX, visibleSheetHeight } from "./utils/sheet";
 import { useRoute } from "./hooks/useRoute";
-import { calculateCosts } from "./utils/costs";
+import { useSettings } from "./hooks/useSettings";
+import { useTrip } from "./hooks/useTrip";
+import { useTripHistory } from "./hooks/useTripHistory";
+import { useTheme } from "./hooks/useTheme";
+import { DESKTOP_QUERY, useMediaQuery } from "./hooks/useMediaQuery";
+import { buildComparison, buildTimeline } from "./utils/trip";
+import { buildUrlSearch, readUrlState } from "./utils/urlState";
+import { useT } from "./i18n/context";
 
-function parseCoordParam(str) {
-  if (!str) return null;
-  const parts = str.split(",").map(Number);
-  if (parts.length === 2 && parts.every((n) => Number.isFinite(n))) {
-    return parts;
-  }
-  return null;
-}
+const TOP_BAR_PX = 52;
+const SHEET_GAP_PX = 16;
+const SHEET_WIDTH_PX = 400;
 
-function getInitialUrlState() {
-  const params = new URLSearchParams(window.location.search);
-  return {
-    start: params.get("from") || "",
-    end: params.get("to") || "",
-    startCoords: parseCoordParam(params.get("sc")),
-    endCoords: parseCoordParam(params.get("ec")),
-    settings: {
-      vehicle: params.get("veh") === "bike" ? "bike" : "car",
-      fuelPrice: Number(params.get("fp")) > 0 ? Number(params.get("fp")) : 1.8,
-      consumption: Number(params.get("cons")) > 0 ? Number(params.get("cons")) : 6.5,
-      passengers: Math.max(1, parseInt(params.get("pax") || "1", 10) || 1),
-      avoidTolls: params.get("avoid") === "1",
-      roundTrip: params.get("rt") === "1",
-    },
-  };
-}
+// Plan sits left of Results: each view enters from and leaves to its own side (fade only with reduced motion)
+const viewMotion = (dir, reduce) => ({
+  initial: { opacity: 0, x: reduce ? 0 : 24 * dir },
+  animate: { opacity: 1, x: 0, transition: { duration: 0.28, ease: [0.16, 1, 0.3, 1] } },
+  exit: { opacity: 0, x: reduce ? 0 : 16 * dir, transition: { duration: 0.14, ease: "easeIn" } },
+});
 
 function App() {
-  const initial = useMemo(() => getInitialUrlState(), []);
+  const t = useT();
+  const initial = useMemo(() => readUrlState(), []);
 
-  const [start, setStart] = useState(initial.start);
-  const [end, setEnd] = useState(initial.end);
-  const [startCoords, setStartCoords] = useState(initial.startCoords);
-  const [endCoords, setEndCoords] = useState(initial.endCoords);
-  const [settings, setSettings] = useState(initial.settings);
+  const trip = useTrip(initial);
+  const { waypoints, departAt, setWaypoints } = trip;
+  const { settings, updateSetting } = useSettings(initial.settings);
+  const history = useTripHistory();
+  const recordTrip = history.record;
+  const [view, setView] = useState("plan");
+  const [snap, setSnap] = useState("half");
   const [focusedToll, setFocusedToll] = useState(null);
+  const [highlightIndex, setHighlightIndex] = useState(null);
+
+  const { mode: themeMode, resolved: theme, cycle: cycleTheme } = useTheme();
+  const isDesktop = useMediaQuery(DESKTOP_QUERY);
+  const reduceMotion = useReducedMotion();
 
   const { routeData, loading, error, search, clearError } = useRoute();
   const didAutoSearch = useRef(false);
 
-  const updateSetting = (key, value) => {
-    setSettings((prev) => ({ ...prev, [key]: value }));
-  };
+  const handleSelectRouteMode = useCallback(
+    (avoid) => updateSetting("avoidTolls", avoid),
+    [updateSetting]
+  );
 
-  // If the user opened a shared link with ?from=...&to=..., automatically fetch the route
-  useEffect(() => {
-    if (!didAutoSearch.current && initial.start.trim() && initial.end.trim()) {
-      didAutoSearch.current = true;
-      search({
-        start: initial.start,
-        end: initial.end,
-        startCoords: initial.startCoords,
-        endCoords: initial.endCoords,
+  const showResults = useCallback(() => {
+    setView("results");
+    setSnap("half");
+  }, []);
+
+  // Runs a search; on success adopts the geocoded waypoints, saves it to history, shows results
+  const runSearch = useCallback(
+    async (list) => {
+      setFocusedToll(null);
+      setHighlightIndex(null);
+      const payload = await search(list);
+      if (!payload) return null;
+      setWaypoints(payload.waypoints);
+      const main = payload.withTolls;
+      recordTrip({
+        waypoints: payload.waypoints,
+        distanceKm: main.distanceKm,
+        durationMin: main.durationMin,
       });
+      showResults();
+      return payload;
+    },
+    [search, setWaypoints, recordTrip, showResults]
+  );
+
+  // A shared link (?wp=… or legacy ?from=&to=) loads its route straight away
+  useEffect(() => {
+    const wps = initial.waypoints;
+    if (!didAutoSearch.current && wps.length >= 2 && wps[0].label && wps[wps.length - 1].label) {
+      didAutoSearch.current = true;
+      runSearch(trip.waypoints);
     }
-  }, [initial, search]);
+  }, [initial, runSearch, trip.waypoints]);
 
   // Keep the URL query string in sync with active route & settings so links are always shareable
   useEffect(() => {
     if (!routeData) return;
-    const params = new URLSearchParams();
-    params.set("from", routeData.start);
-    params.set("to", routeData.end);
-    if (routeData.startCoords) {
-      params.set("sc", routeData.startCoords.map((n) => n.toFixed(5)).join(","));
-    }
-    if (routeData.endCoords) {
-      params.set("ec", routeData.endCoords.map((n) => n.toFixed(5)).join(","));
-    }
-    params.set("veh", settings.vehicle);
-    params.set("fp", String(settings.fuelPrice));
-    params.set("cons", String(settings.consumption));
-    params.set("pax", String(settings.passengers));
-    if (settings.avoidTolls) params.set("avoid", "1");
-    if (settings.roundTrip) params.set("rt", "1");
+    const query = buildUrlSearch({ waypoints: routeData.waypoints, departAt, settings });
+    window.history.replaceState(null, "", `${window.location.pathname}${query}`);
+  }, [routeData, departAt, settings]);
 
-    const newUrl = `${window.location.pathname}?${params.toString()}`;
-    window.history.replaceState(null, "", newUrl);
-  }, [routeData, settings]);
+  // Costs recalculate locally: settings changes never cost a request
+  const comparison = useMemo(() => buildComparison(routeData, settings), [routeData, settings]);
 
-  // Instant reactive cost calculation (zero API calls when settings change!)
-  const comparison = useMemo(() => {
-    if (!routeData) return null;
-
-    const buildOption = (branch, isAvoidTolls) => {
-      if (!branch) return null;
-      const costs = calculateCosts({
-        distanceKm: branch.distanceKm,
-        durationMin: branch.durationMin,
-        consumption: settings.consumption,
-        fuelPrice: settings.fuelPrice,
-        tolls: branch.tolls,
-        vehicle: settings.vehicle,
-        passengers: settings.passengers,
-        roundTrip: settings.roundTrip,
-      });
-      return {
-        start: routeData.start,
-        end: routeData.end,
-        startCoords: routeData.startCoords,
-        endCoords: routeData.endCoords,
-        avoidTolls: isAvoidTolls,
-        vehicle: settings.vehicle,
-        passengers: settings.passengers,
-        roundTrip: settings.roundTrip,
-        coords: branch.coords,
-        tolls: branch.tolls,
-        baseDistanceKm: branch.distanceKm,
-        baseDurationMin: branch.durationMin,
-        distanceKm: costs.effectiveDistanceKm,
-        durationMin: costs.effectiveDurationMin,
-        ...costs,
-      };
-    };
-
-    const withTolls = buildOption(routeData.withTolls, false);
-    const withoutTolls = buildOption(routeData.withoutTolls, true);
-    const active = settings.avoidTolls ? withoutTolls : withTolls;
-    const alternative = settings.avoidTolls ? withTolls : withoutTolls;
-
-    return { withTolls, withoutTolls, active, alternative };
-  }, [routeData, settings]);
-
+  // useRoute falls back to one branch for both when a variant fails
+  const hasAlternative = Boolean(routeData && routeData.withTolls !== routeData.withoutTolls);
   const activeResult = comparison?.active ?? null;
+  const showingResults = view === "results" && Boolean(activeResult);
 
-  const handleSearch = async () => {
-    setFocusedToll(null);
-    const payload = await search({ start, end, startCoords, endCoords });
-    if (payload) {
-      setStartCoords(payload.startCoords);
-      setEndCoords(payload.endCoords);
-    }
+  // Clock times for the active route; recomputed when departure or breaks change, no refetch
+  const timeline = useMemo(
+    () => (activeResult ? buildTimeline(activeResult, { departAt, breaks: settings.breaks }) : null),
+    [activeResult, departAt, settings.breaks]
+  );
+
+  const handleSearch = () => runSearch(waypoints);
+
+  // Saved trip: put its places back and look it up again
+  const handleLoadTrip = (saved) => {
+    setWaypoints(saved.waypoints);
+    runSearch(saved.waypoints);
   };
 
-  const handleSwapWaypoints = () => {
-    const prevStart = start;
-    const prevStartCoords = startCoords;
-    setStart(end);
-    setStartCoords(endCoords);
-    setEnd(prevStart);
-    setEndCoords(prevStartCoords);
-  };
+  const handleSelectToll = useCallback(
+    (toll, index) => {
+      setFocusedToll({ toll, index });
+      if (!isDesktop) setSnap("peek"); // uncover the map on a phone
+    },
+    [isDesktop]
+  );
+
+  // Space the sheet covers, so the route is framed in the visible map
+  const insets = isDesktop
+    ? { left: SHEET_GAP_PX + SHEET_WIDTH_PX }
+    : {
+        bottom: visibleSheetHeight(
+          snap,
+          window.innerHeight - TOP_BAR_PX - TOP_GAP_PX,
+          window.innerHeight
+        ),
+      };
 
   return (
-    <div className="min-h-screen flex flex-col text-slate-900">
-      <Header />
+    <div className="flex h-dvh flex-col overflow-hidden bg-ground text-ink">
+      <Header
+        themeMode={themeMode}
+        onCycleTheme={cycleTheme}
+        history={history}
+        onLoadTrip={handleLoadTrip}
+      />
 
-      <main className="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-16">
-        <Hero />
+      <main className="relative flex-1">
+        <MapView
+          route={activeResult}
+          alternativeRoute={hasAlternative ? comparison?.alternative : null}
+          focusedToll={focusedToll}
+          highlightIndex={highlightIndex}
+          loading={loading}
+          theme={theme}
+          isDesktop={isDesktop}
+          insets={insets}
+          onSelectRouteMode={handleSelectRouteMode}
+          onHoverToll={setHighlightIndex}
+        />
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start mt-4">
-          <div className="lg:col-span-5 flex flex-col gap-6">
-            <TripPlanner
-              start={start}
-              end={end}
-              onStartChange={(text) => {
-                setStart(text);
-                setStartCoords(null);
-              }}
-              onEndChange={(text) => {
-                setEnd(text);
-                setEndCoords(null);
-              }}
-              onStartSelect={(s) => {
-                setStart(s.label);
-                setStartCoords(s.coords);
-              }}
-              onEndSelect={(s) => {
-                setEnd(s.label);
-                setEndCoords(s.coords);
-              }}
-              onSwap={handleSwapWaypoints}
-              settings={settings}
-              onSettingChange={updateSetting}
-              onSearch={handleSearch}
-              loading={loading}
-              error={error}
-              onDismissError={clearError}
-              hasActiveRoute={Boolean(activeResult)}
-            />
-
-            {activeResult && (
-              <div className="flex flex-col gap-6">
-                <RouteSummary
+        <Sheet
+          isDesktop={isDesktop}
+          snap={snap}
+          onSnapChange={setSnap}
+          topOffset={TOP_BAR_PX}
+          label={t(showingResults ? "sheet.results" : "sheet.plan")}
+          scrollKey={view}
+        >
+          <AnimatePresence mode="wait" initial={false}>
+            {showingResults ? (
+              <motion.div key="results" {...viewMotion(1, reduceMotion)}>
+                <ResultsView
                   result={activeResult}
                   comparison={comparison}
-                  onSelectRouteMode={(avoid) => updateSetting("avoidTolls", avoid)}
+                  hasAlternative={hasAlternative}
+                  settings={settings}
+                  onSettingChange={updateSetting}
+                  timeline={timeline}
+                  departAt={departAt}
+                  onDepartChange={trip.setDepartAt}
+                  onSelectRouteMode={handleSelectRouteMode}
+                  onEdit={() => setView("plan")}
+                  highlightIndex={highlightIndex}
+                  onHoverToll={setHighlightIndex}
+                  onSelectToll={handleSelectToll}
                 />
-                <TollList
-                  tolls={activeResult.tolls}
-                  vehicle={settings.vehicle}
-                  roundTrip={settings.roundTrip}
-                  onSelectToll={(toll) => setFocusedToll(toll)}
+              </motion.div>
+            ) : (
+              <motion.div key="plan" {...viewMotion(-1, reduceMotion)}>
+                <TripPlanner
+                  trip={trip}
+                  settings={settings}
+                  onSettingChange={updateSetting}
+                  onSearch={handleSearch}
+                  loading={loading}
+                  error={error}
+                  onDismissError={clearError}
+                  hasResults={Boolean(activeResult)}
+                  onShowResults={showResults}
+                  recentTrips={history.trips}
+                  onLoadTrip={handleLoadTrip}
                 />
-              </div>
+              </motion.div>
             )}
-          </div>
+          </AnimatePresence>
+        </Sheet>
 
-          <div className="lg:col-span-7 lg:sticky lg:top-20">
-            <MapView
-              route={activeResult}
-              alternativeRoute={comparison?.alternative}
-              focusedToll={focusedToll}
-              loading={loading}
-              onSelectRouteMode={(avoid) => updateSetting("avoidTolls", avoid)}
-            />
-          </div>
-        </div>
+        <p role="status" className="sr-only">
+          {loading ? t("sheet.finding") : ""}
+        </p>
       </main>
-
-      <Footer />
     </div>
   );
 }

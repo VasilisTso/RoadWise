@@ -10,6 +10,10 @@ const ALLOWED = {
   "v2/directions/driving-car/geojson": "POST",
 };
 
+// The app sends 2–6 points (start, stops, destination); a little headroom here
+const MIN_POINTS = 2;
+const MAX_POINTS = 8;
+
 const isCoord = (c) =>
   Array.isArray(c) && c.length === 2 && c.every((n) => typeof n === "number" && Number.isFinite(n));
 
@@ -27,12 +31,14 @@ export default async function handler(req, res) {
   let body;
   if (req.method === "POST") {
     const b = req.body ?? {};
-    if (!Array.isArray(b.coordinates) || b.coordinates.length !== 2 || !b.coordinates.every(isCoord)) {
+    const n = Array.isArray(b.coordinates) ? b.coordinates.length : 0;
+    if (n < MIN_POINTS || n > MAX_POINTS || !b.coordinates.every(isCoord)) {
       return res.status(400).json({ error: "Invalid coordinates" });
     }
     body = JSON.stringify({
       coordinates: b.coordinates,
-      instructions: false,
+      // multi-stop trips need instructions for per-leg segments
+      instructions: b.instructions === true,
       options: b.options?.avoid_features?.includes("tollways")
         ? { avoid_features: ["tollways"] }
         : {},

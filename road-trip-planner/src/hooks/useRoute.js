@@ -1,25 +1,12 @@
 import { useCallback, useRef, useState } from "react";
 import tollData from "../data/tolls.json";
-import { fetchRoute, geocode } from "../services/ors";
-import { getTollsOnRoute, tolledSegmentsFromExtras } from "../utils/geo";
+import { AppError, fetchRoute, geocode } from "../services/ors";
+import { useI18n } from "../i18n/context";
+import { parseRouteFeature } from "../utils/route";
 
-function parseFeature(feature, includeTolls) {
-  // ORS gives [lng, lat]; Leaflet wants [lat, lng]
-  const coords = feature.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
-  const distanceKm = feature.properties.summary.distance / 1000;
-  const durationMin = feature.properties.summary.duration / 60;
-
-  const tollValues = feature.properties?.extras?.tollways?.values;
-  const tolledSegments = tolledSegmentsFromExtras(tollValues, coords.length);
-
-  const tolls = includeTolls
-    ? getTollsOnRoute(tollData, coords, { tolledSegments })
-    : [];
-
-  return { coords, distanceKm, durationMin, tolls };
-}
-
+// `error` is { key, vars } for the i18n dictionary, or null
 export function useRoute() {
+  const { lang } = useI18n();
   const [routeData, setRouteData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -27,45 +14,56 @@ export function useRoute() {
 
   const clearError = useCallback(() => setError(null), []);
 
-  const search = useCallback(async ({ start, end, startCoords, endCoords }) => {
+  /**
+   * `waypoints`: [{ label, coords? }] in driving order. Empty stops in the middle are skipped;
+   * places typed without picking a suggestion are geocoded first.
+   */
+  const search = useCallback(async (waypoints) => {
     setError(null);
-    if (!start.trim() || !end.trim()) {
-      setError("Please enter both a start location and a destination.");
+    const first = waypoints[0];
+    const last = waypoints[waypoints.length - 1];
+    if (!first?.label.trim() || !last?.label.trim() || waypoints.length < 2) {
+      setError({ key: "errors.missingEnds" });
       return null;
     }
+    const points = waypoints.filter((w) => w.label.trim());
 
     const id = ++requestId.current;
     setLoading(true);
 
     try {
-      const sCoords = startCoords ?? (await geocode(start));
-      if (!sCoords) throw new Error(`Couldn't find "${start}". Try a more specific place name.`);
-
-      const eCoords = endCoords ?? (await geocode(end));
-      if (!eCoords) throw new Error(`Couldn't find "${end}". Try a more specific place name.`);
+      const located = await Promise.all(
+        points.map(async (w) => {
+          const coords = w.coords ?? (await geocode(w.label, { lang }));
+          if (!coords) throw new AppError("errors.notFound", { place: w.label });
+          return { ...w, coords };
+        })
+      );
+      const coordsList = located.map((w) => w.coords);
 
       // Fetch both With-Tolls and Toll-Free routes in parallel
       const [tollSettled, freeSettled] = await Promise.allSettled([
-        fetchRoute(sCoords, eCoords, { avoidTolls: false, withTollInfo: true }),
-        fetchRoute(sCoords, eCoords, { avoidTolls: true, withTollInfo: false }),
+        fetchRoute(coordsList, { avoidTolls: false, withTollInfo: true }),
+        fetchRoute(coordsList, { avoidTolls: true, withTollInfo: false }),
       ]);
 
       if (id !== requestId.current) return null;
 
       if (tollSettled.status === "rejected" && freeSettled.status === "rejected") {
-        throw tollSettled.reason || new Error("No route was found between these locations.");
+        throw tollSettled.reason || new AppError("errors.noRoute");
       }
 
       const withTolls =
-        tollSettled.status === "fulfilled" ? parseFeature(tollSettled.value, true) : null;
+        tollSettled.status === "fulfilled"
+          ? parseRouteFeature(tollSettled.value, { tollData, includeTolls: true })
+          : null;
       const withoutTolls =
-        freeSettled.status === "fulfilled" ? parseFeature(freeSettled.value, false) : null;
+        freeSettled.status === "fulfilled"
+          ? parseRouteFeature(freeSettled.value, { tollData, includeTolls: false })
+          : null;
 
       const payload = {
-        start,
-        end,
-        startCoords: sCoords,
-        endCoords: eCoords,
+        waypoints: located,
         withTolls: withTolls ?? withoutTolls,
         withoutTolls: withoutTolls ?? withTolls,
       };
@@ -75,12 +73,12 @@ export function useRoute() {
     } catch (err) {
       if (id !== requestId.current) return null;
       console.error(err);
-      setError(err.message || "Something went wrong. Please try again.");
+      setError(err instanceof AppError ? { key: err.key, vars: err.vars } : { key: "errors.generic" });
       return null;
     } finally {
       if (id === requestId.current) setLoading(false);
     }
-  }, []);
+  }, [lang]);
 
   return { routeData, loading, error, search, clearError };
 }

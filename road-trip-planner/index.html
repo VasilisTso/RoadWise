@@ -4,8 +4,20 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/distance.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Road Wise</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <title>RoadWise: toll and fuel cost for Greek road trips</title>
+    <meta name="description" content="Plan a drive in Greece and see every toll booth on the route with its price, plus fuel cost, next to the toll-free route." />
+    <script>
+      // Apply a saved theme and language before first paint (useTheme / I18nProvider take over after load)
+      try {
+        var t = localStorage.getItem("roadwise:theme:v1");
+        if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+        var l = localStorage.getItem("roadwise:lang:v1");
+        if (l === "en" || l === "el") document.documentElement.lang = l;
+      } catch (e) {}
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Commissioner:wght@400..700&family=Fira+Sans+Condensed:wght@500;600;700&display=swap" />
   </head>
   <body>
     <div id="root"></div>
