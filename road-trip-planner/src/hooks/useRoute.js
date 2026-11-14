@@ -1,9 +1,12 @@
 import { useCallback, useRef, useState } from "react";
 import tollData from "../data/tolls.json";
-import { fetchRoute, geocode } from "../services/ors";
+import { AppError, fetchRoute, geocode } from "../services/ors";
+import { useI18n } from "../i18n/context";
 import { parseRouteFeature } from "../utils/route";
 
+// `error` is { key, vars } for the i18n dictionary, or null
 export function useRoute() {
+  const { lang } = useI18n();
   const [routeData, setRouteData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -20,7 +23,7 @@ export function useRoute() {
     const first = waypoints[0];
     const last = waypoints[waypoints.length - 1];
     if (!first?.label.trim() || !last?.label.trim() || waypoints.length < 2) {
-      setError("Add where you start and where you're going.");
+      setError({ key: "errors.missingEnds" });
       return null;
     }
     const points = waypoints.filter((w) => w.label.trim());
@@ -31,8 +34,8 @@ export function useRoute() {
     try {
       const located = await Promise.all(
         points.map(async (w) => {
-          const coords = w.coords ?? (await geocode(w.label));
-          if (!coords) throw new Error(`Couldn't find "${w.label}". Try a more specific place name.`);
+          const coords = w.coords ?? (await geocode(w.label, { lang }));
+          if (!coords) throw new AppError("errors.notFound", { place: w.label });
           return { ...w, coords };
         })
       );
@@ -47,7 +50,7 @@ export function useRoute() {
       if (id !== requestId.current) return null;
 
       if (tollSettled.status === "rejected" && freeSettled.status === "rejected") {
-        throw tollSettled.reason || new Error("No route was found between these places.");
+        throw tollSettled.reason || new AppError("errors.noRoute");
       }
 
       const withTolls =
@@ -70,12 +73,12 @@ export function useRoute() {
     } catch (err) {
       if (id !== requestId.current) return null;
       console.error(err);
-      setError(err.message || "Something went wrong. Please try again.");
+      setError(err instanceof AppError ? { key: err.key, vars: err.vars } : { key: "errors.generic" });
       return null;
     } finally {
       if (id === requestId.current) setLoading(false);
     }
-  }, []);
+  }, [lang]);
 
   return { routeData, loading, error, search, clearError };
 }

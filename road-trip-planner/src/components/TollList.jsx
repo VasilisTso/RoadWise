@@ -1,15 +1,14 @@
 import React from "react";
-import { formatEuro, pluralize } from "../utils/format";
-
-const VEHICLE_NAME = { car: "car", bike: "motorbike" };
+import { useI18n } from "../i18n/context";
 
 // Tolls tab: the route's booths in driving order, set like a posted rate board.
 function TollList({ tolls, vehicle = "car", roundTrip = false, highlightIndex, onHoverToll, onSelectToll }) {
+  const { t, fmt } = useI18n();
   if (tolls.length === 0) {
     return (
       <div className="rounded-plate border border-dashed border-line-strong px-4 py-6 text-center">
-        <p className="font-medium text-ink">No toll booths on this route</p>
-        <p className="mt-1 text-[13px] text-ink-muted">You pay for fuel only.</p>
+        <p className="font-medium text-ink">{t("tolls.emptyTitle")}</p>
+        <p className="mt-1 text-[13px] text-ink-muted">{t("tolls.emptyHint")}</p>
       </div>
     );
   }
@@ -20,7 +19,7 @@ function TollList({ tolls, vehicle = "car", roundTrip = false, highlightIndex, o
   return (
     <div>
       <p className="mb-2 text-[13px] text-ink-muted">
-        Published rates for a {VEHICLE_NAME[vehicle]}, in driving order. Rates can change.
+        {t(`tolls.intro.${vehicle}`)}
       </p>
       <ol className="rate-board" onMouseLeave={() => onHoverToll?.(null)}>
         {tolls.map((toll, i) => (
@@ -33,7 +32,12 @@ function TollList({ tolls, vehicle = "car", roundTrip = false, highlightIndex, o
               onFocus={() => onHoverToll?.(i)}
               onBlur={() => onHoverToll?.(null)}
               onClick={() => onSelectToll?.(toll, i)}
-              aria-label={`${i + 1}. ${toll.name}, ${toll.highway}: ${formatEuro(toll[vehicle])}. Show on map`}
+              aria-label={t("tolls.rowLabel", {
+                n: i + 1,
+                name: toll.name,
+                highway: toll.highway,
+                fee: fmt.euro(toll[vehicle]),
+              })}
             >
               <span aria-hidden className="rate-row__num num">
                 {i + 1}
@@ -42,15 +46,15 @@ function TollList({ tolls, vehicle = "car", roundTrip = false, highlightIndex, o
                 <span className="block truncate font-medium text-ink">{toll.name}</span>
                 <span className="block truncate text-[13px] text-ink-muted">
                   {toll.highway}
-                  {toll.type === "ramp" ? " · exit ramp" : ""}
+                  {toll.type === "ramp" ? ` · ${t("tolls.exitRamp")}` : ""}
                 </span>
               </span>
               <span className="text-right">
                 <span className="num block font-plate text-[17px] font-semibold text-ink">
-                  {formatEuro(toll[vehicle])}
+                  {fmt.euro(toll[vehicle])}
                 </span>
                 <span className="num block text-xs text-ink-subtle">
-                  {VEHICLE_NAME[other]} {formatEuro(toll[other])}
+                  {t(`tolls.vehicleShort.${other}`)} {fmt.euro(toll[other])}
                 </span>
               </span>
             </button>
@@ -59,11 +63,11 @@ function TollList({ tolls, vehicle = "car", roundTrip = false, highlightIndex, o
       </ol>
       <div className="mt-1 flex items-baseline justify-between border-t border-line-strong pt-2.5">
         <span className="text-ink">
-          {pluralize(tolls.length, "booth", "booths")}
-          {roundTrip && <span className="text-ink-muted"> · × 2 for the return</span>}
+          {t("results.booths", { n: tolls.length })}
+          {roundTrip && <span className="text-ink-muted"> · {t("tolls.returnTimesTwo")}</span>}
         </span>
         <span className="num font-plate text-[17px] font-semibold text-ink">
-          {formatEuro(oneWay * (roundTrip ? 2 : 1))}
+          {fmt.euro(oneWay * (roundTrip ? 2 : 1))}
         </span>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { TbMapPin } from "react-icons/tb";
 import { useAutocomplete } from "../hooks/useAutocomplete";
+import { useT } from "../i18n/context";
 
 /**
  * Place input with autocomplete (WAI-ARIA combobox, list autocomplete).
@@ -17,6 +18,7 @@ function LocationField({
   marker,
   action = null,
 }) {
+  const t = useT();
   const { suggestions, search, clear } = useAutocomplete();
   const [activeIndex, setActiveIndex] = useState(-1);
   const open = suggestions.length > 0;
@@ -97,7 +99,7 @@ function LocationField({
         <ul
           id={listboxId}
           role="listbox"
-          aria-label={`${label} suggestions`}
+          aria-label={t("waypoints.suggestions", { label })}
           className="popover-in absolute inset-x-0 top-full z-50 mt-1 max-h-64 overflow-auto rounded-plate border border-line bg-surface-raised p-1 shadow-sheet"
         >
           {suggestions.map((s, i) => {

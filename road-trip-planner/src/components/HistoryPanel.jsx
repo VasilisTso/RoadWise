@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { TbPencil, TbStar, TbStarFilled, TbTrash } from "react-icons/tb";
 import { tripTitle } from "../hooks/useTripHistory";
-import { formatDuration, formatKm, formatRelative, pluralize } from "../utils/format";
+import { useI18n, useT } from "../i18n/context";
 
 function RowIconButton({ label, pressed, onClick, children }) {
   return (
@@ -19,7 +19,8 @@ function RowIconButton({ label, pressed, onClick, children }) {
 }
 
 function RenameField({ trip, onDone }) {
-  const [value, setValue] = useState(trip.name || tripTitle(trip));
+  const t = useT();
+  const [value, setValue] = useState(trip.name || tripTitle(trip, t));
   const ref = useRef(null);
   useEffect(() => {
     ref.current?.focus();
@@ -28,7 +29,7 @@ function RenameField({ trip, onDone }) {
   return (
     <input
       ref={ref}
-      aria-label="Trip name"
+      aria-label={t("history.tripName")}
       value={value}
       maxLength={60}
       onChange={(e) => setValue(e.target.value)}
@@ -48,8 +49,9 @@ function RenameField({ trip, onDone }) {
 }
 
 function TripRow({ trip, onLoad, onToggleStar, onRename, onRemove }) {
+  const { t, fmt } = useI18n();
   const [renaming, setRenaming] = useState(false);
-  const title = tripTitle(trip);
+  const title = tripTitle(trip, t);
   const stops = trip.waypoints.length - 2;
 
   return (
@@ -60,7 +62,7 @@ function TripRow({ trip, onLoad, onToggleStar, onRename, onRemove }) {
             trip={trip}
             onDone={(name) => {
               setRenaming(false);
-              if (name != null) onRename(trip.id, name === tripTitle({ ...trip, name: "" }) ? "" : name);
+              if (name != null) onRename(trip.id, name === tripTitle({ ...trip, name: "" }, t) ? "" : name);
             }}
           />
         ) : (
@@ -71,14 +73,14 @@ function TripRow({ trip, onLoad, onToggleStar, onRename, onRemove }) {
           >
             <span className="block truncate font-medium text-ink">{title}</span>
             <span className="num block truncate text-[13px] text-ink-muted">
-              {formatKm(trip.distanceKm)} · {formatDuration(trip.durationMin)}
-              {stops > 0 && ` · ${pluralize(stops, "stop", "stops")}`} · {formatRelative(trip.savedAt)}
+              {fmt.km(trip.distanceKm)} · {fmt.duration(trip.durationMin)}
+              {stops > 0 && ` · ${t("results.stops", { n: stops })}`} · {fmt.relative(trip.savedAt)}
             </span>
           </button>
         )}
       </div>
       <RowIconButton
-        label={trip.starred ? `Unstar ${title}` : `Star ${title}`}
+        label={t(trip.starred ? "history.unstar" : "history.star", { title })}
         pressed={trip.starred}
         onClick={() => onToggleStar(trip.id)}
       >
@@ -88,10 +90,10 @@ function TripRow({ trip, onLoad, onToggleStar, onRename, onRemove }) {
           <TbStar aria-hidden className="size-4" />
         )}
       </RowIconButton>
-      <RowIconButton label={`Rename ${title}`} onClick={() => setRenaming(true)}>
+      <RowIconButton label={t("history.rename", { title })} onClick={() => setRenaming(true)}>
         <TbPencil aria-hidden className="size-4" />
       </RowIconButton>
-      <RowIconButton label={`Delete ${title}`} onClick={() => onRemove(trip.id)}>
+      <RowIconButton label={t("history.remove", { title })} onClick={() => onRemove(trip.id)}>
         <TbTrash aria-hidden className="size-4" />
       </RowIconButton>
     </li>
@@ -114,6 +116,7 @@ function Group({ heading, trips, ...handlers }) {
 
 // Saved (starred) and recent trips. Opens from the top bar.
 function HistoryPanel({ trips, onLoad, onToggleStar, onRename, onRemove }) {
+  const t = useT();
   const handlers = { onLoad, onToggleStar, onRename, onRemove };
   const starred = trips.filter((t) => t.starred);
   const recent = trips.filter((t) => !t.starred);
@@ -121,19 +124,17 @@ function HistoryPanel({ trips, onLoad, onToggleStar, onRename, onRemove }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="px-2">
-        <p className="font-semibold text-ink">Your trips</p>
-        <p className="text-[13px] text-ink-muted">
-          The last 8 trips you looked up stay here. Star one to keep it.
-        </p>
+        <p className="font-semibold text-ink">{t("history.title")}</p>
+        <p className="text-[13px] text-ink-muted">{t("history.intro")}</p>
       </div>
       {trips.length === 0 ? (
         <p className="mx-2 rounded-plate border border-dashed border-line-strong px-3 py-4 text-center text-[13px] text-ink-muted">
-          No trips yet. Find a route and it shows up here.
+          {t("history.empty")}
         </p>
       ) : (
         <div className="-mx-1 flex max-h-[min(60vh,420px)] flex-col gap-3 overflow-y-auto px-1">
-          <Group heading="Starred" trips={starred} {...handlers} />
-          <Group heading="Recent" trips={recent} {...handlers} />
+          <Group heading={t("history.starred")} trips={starred} {...handlers} />
+          <Group heading={t("history.recent")} trips={recent} {...handlers} />
         </div>
       )}
     </div>

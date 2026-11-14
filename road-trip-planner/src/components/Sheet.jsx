@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { TOP_GAP_PX, snapOffsets } from "../utils/sheet";
+import { useT } from "../i18n/context";
 import { animate, motion, useDragControls, useMotionValue, useReducedMotion } from "framer-motion"; // eslint-disable-line no-unused-vars
 
 /**
@@ -51,6 +52,7 @@ function useViewportHeight() {
 }
 
 function BottomSheet({ snap, onSnapChange, topOffset, label, scrollRef, children }) {
+  const t = useT();
   const vh = useViewportHeight();
   const sheetHeight = vh - topOffset - TOP_GAP_PX;
   const offsets = snapOffsets(sheetHeight, vh);
@@ -84,7 +86,7 @@ function BottomSheet({ snap, onSnapChange, topOffset, label, scrollRef, children
   };
 
   const nextSnap = snap === "full" ? "peek" : snap === "half" ? "full" : "half";
-  const handleLabel = snap === "full" ? "Collapse panel" : "Expand panel";
+  const handleLabel = t(snap === "full" ? "sheet.collapse" : "sheet.expand");
 
   return (
     <motion.section

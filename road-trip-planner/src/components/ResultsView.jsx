@@ -4,6 +4,7 @@ import CostBreakdown from "./CostBreakdown";
 import TollList from "./TollList";
 import Timeline from "./Timeline";
 import Tabs from "./ui/Tabs";
+import { useT } from "../i18n/context";
 
 // Results view: total and route choice up top, then Cost · Tolls · Timeline.
 function ResultsView({
@@ -21,6 +22,7 @@ function ResultsView({
   onHoverToll,
   onSelectToll,
 }) {
+  const t = useT();
   const [tab, setTab] = useState("cost");
 
   return (
@@ -35,13 +37,13 @@ function ResultsView({
       />
 
       <Tabs
-        label="Trip details"
+        label={t("results.tabsLabel")}
         value={tab}
         onChange={setTab}
         tabs={[
-          { id: "cost", label: "Cost" },
-          { id: "tolls", label: "Tolls", count: result.tolls.length },
-          { id: "timeline", label: "Timeline" },
+          { id: "cost", label: t("results.tabCost") },
+          { id: "tolls", label: t("results.tabTolls"), count: result.tolls.length },
+          { id: "timeline", label: t("results.tabTimeline") },
         ]}
       >
         {tab === "cost" ? (

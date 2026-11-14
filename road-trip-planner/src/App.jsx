@@ -14,6 +14,7 @@ import { useTheme } from "./hooks/useTheme";
 import { DESKTOP_QUERY, useMediaQuery } from "./hooks/useMediaQuery";
 import { buildComparison, buildTimeline } from "./utils/trip";
 import { buildUrlSearch, readUrlState } from "./utils/urlState";
+import { useT } from "./i18n/context";
 
 const TOP_BAR_PX = 52;
 const SHEET_GAP_PX = 16;
@@ -27,6 +28,7 @@ const viewMotion = (dir, reduce) => ({
 });
 
 function App() {
+  const t = useT();
   const initial = useMemo(() => readUrlState(), []);
 
   const trip = useTrip(initial);
@@ -161,7 +163,7 @@ function App() {
           snap={snap}
           onSnapChange={setSnap}
           topOffset={TOP_BAR_PX}
-          label={showingResults ? "Trip results" : "Plan a trip"}
+          label={t(showingResults ? "sheet.results" : "sheet.plan")}
           scrollKey={view}
         >
           <AnimatePresence mode="wait" initial={false}>
@@ -204,7 +206,7 @@ function App() {
         </Sheet>
 
         <p role="status" className="sr-only">
-          {loading ? "Finding routes" : ""}
+          {loading ? t("sheet.finding") : ""}
         </p>
       </main>
     </div>

@@ -7,10 +7,12 @@
     <title>RoadWise: toll and fuel cost for Greek road trips</title>
     <meta name="description" content="Plan a drive in Greece and see every toll booth on the route with its price, plus fuel cost, next to the toll-free route." />
     <script>
-      // Apply a saved theme before first paint (useTheme takes over after load)
+      // Apply a saved theme and language before first paint (useTheme / I18nProvider take over after load)
       try {
         var t = localStorage.getItem("roadwise:theme:v1");
         if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+        var l = localStorage.getItem("roadwise:lang:v1");
+        if (l === "en" || l === "el") document.documentElement.lang = l;
       } catch (e) {}
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />

@@ -3,10 +3,11 @@ import { TbBolt, TbCar, TbMinus, TbMotorbike, TbPlus } from "react-icons/tb";
 import SegmentedControl from "./ui/SegmentedControl";
 import { FUEL_TYPES, fuelOptionsFor } from "../data/fuel";
 import { toLocalInputValue } from "../utils/trip";
+import { useT } from "../i18n/context";
 
 const VEHICLES = [
-  { value: "car", label: "Car", icon: TbCar },
-  { value: "bike", label: "Motorbike", icon: TbMotorbike },
+  { value: "car", icon: TbCar },
+  { value: "bike", icon: TbMotorbike },
 ];
 
 const MAX_PASSENGERS = 9;
@@ -40,16 +41,17 @@ function NumberField({ id, label, unit, value, onChange, step, min = 0 }) {
 }
 
 function PassengerStepper({ id, value, onChange }) {
+  const t = useT();
   const set = (n) => onChange(Math.min(MAX_PASSENGERS, Math.max(1, n)));
   return (
     <div>
       <label htmlFor={id} className="field-label">
-        People sharing
+        {t("settings.people")}
       </label>
       <div className="flex h-10 items-stretch overflow-hidden rounded-plate border border-line bg-surface-raised">
         <button
           type="button"
-          aria-label="One person fewer"
+          aria-label={t("settings.fewer")}
           disabled={value <= 1}
           onClick={() => set(value - 1)}
           className="grid w-10 place-items-center text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
@@ -68,7 +70,7 @@ function PassengerStepper({ id, value, onChange }) {
         />
         <button
           type="button"
-          aria-label="One person more"
+          aria-label={t("settings.more")}
           disabled={value >= MAX_PASSENGERS}
           onClick={() => set(value + 1)}
           className="grid w-10 place-items-center text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
@@ -82,21 +84,23 @@ function PassengerStepper({ id, value, onChange }) {
 
 // What you drive and what it runs on. Motorbikes only offer petrol and electric.
 export function VehicleFields({ settings, onChange }) {
+  const t = useT();
+  const vehicles = VEHICLES.map((v) => ({ ...v, label: t(`settings.${v.value}`) }));
   const fuelOptions = fuelOptionsFor(settings.vehicle).map((id) => ({
     value: id,
-    label: FUEL_TYPES[id].label,
+    label: t(`fuel.${id}`),
     icon: id === "ev" ? TbBolt : undefined,
   }));
   return (
     <div className="flex flex-col gap-4">
       <SegmentedControl
-        label="Vehicle"
+        label={t("settings.vehicle")}
         value={settings.vehicle}
         onChange={(v) => onChange("vehicle", v)}
-        options={VEHICLES}
+        options={vehicles}
       />
       <SegmentedControl
-        label="Runs on"
+        label={t("settings.runsOn")}
         value={settings.fuelType}
         onChange={(v) => onChange("fuelType", v)}
         options={fuelOptions}
@@ -107,13 +111,14 @@ export function VehicleFields({ settings, onChange }) {
 
 // When you leave, and whether to allow for breaks. Empty `departAt` means "now".
 export function DepartureFields({ departAt, onDepartChange, breaks, onBreaksChange, idPrefix = "" }) {
+  const t = useT();
   const id = `${idPrefix}depart-at`;
   return (
     <div className="flex flex-col gap-3">
       <div>
         <div className="flex items-baseline justify-between">
           <label htmlFor={id} className="field-label">
-            Leaving
+            {t("settings.leaving")}
           </label>
           {departAt && (
             <button
@@ -121,7 +126,7 @@ export function DepartureFields({ departAt, onDepartChange, breaks, onBreaksChan
               onClick={() => onDepartChange(null)}
               className="-mr-1 rounded-plate px-1 py-0.5 text-[13px] font-medium text-ink-muted hover:text-ink"
             >
-              Leave now
+              {t("settings.leaveNow")}
             </button>
           )}
         </div>
@@ -141,7 +146,7 @@ export function DepartureFields({ departAt, onDepartChange, breaks, onBreaksChan
           className="size-4 shrink-0 accent-ink"
         />
         <span>
-          Include breaks <span className="text-ink-muted">· 15 min every 2 h of driving</span>
+          {t("settings.breaks")} <span className="text-ink-muted">· {t("settings.breaksHint")}</span>
         </span>
       </label>
     </div>
@@ -150,6 +155,7 @@ export function DepartureFields({ departAt, onDepartChange, breaks, onBreaksChan
 
 // Cost inputs. Every change recalculates locally: no new route request.
 function TripSettings({ settings, onChange, idPrefix = "" }) {
+  const t = useT();
   const { fuelPrice, consumption, passengers, roundTrip } = settings;
   const fuel = FUEL_TYPES[settings.fuelType] ?? FUEL_TYPES.petrol;
 
@@ -161,26 +167,26 @@ function TripSettings({ settings, onChange, idPrefix = "" }) {
         onChange={(n) => onChange("passengers", n)}
       />
       <SegmentedControl
-        label="Trip"
+        label={t("settings.trip")}
         value={roundTrip ? "return" : "oneway"}
         onChange={(v) => onChange("roundTrip", v === "return")}
         options={[
-          { value: "oneway", label: "One way" },
-          { value: "return", label: "Return" },
+          { value: "oneway", label: t("settings.oneWay") },
+          { value: "return", label: t("settings.return") },
         ]}
       />
       <NumberField
         id={`${idPrefix}fuel-price`}
-        label={fuel.energy === "electricity" ? "Charging price" : "Fuel price"}
-        unit={fuel.priceUnit}
+        label={t(fuel.energy === "electricity" ? "settings.chargingPrice" : "settings.fuelPrice")}
+        unit={t(`unit.${fuel.priceUnit}`)}
         step="0.01"
         value={fuelPrice}
         onChange={(n) => onChange("fuelPrice", n)}
       />
       <NumberField
         id={`${idPrefix}consumption`}
-        label="Consumption"
-        unit={fuel.consumptionUnit}
+        label={t("settings.consumption")}
+        unit={t(`unit.${fuel.consumptionUnit}`)}
         step="0.1"
         value={consumption}
         onChange={(n) => onChange("consumption", n)}

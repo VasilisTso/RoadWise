@@ -4,6 +4,7 @@ import { TbGripVertical, TbPlus, TbX } from "react-icons/tb";
 import LocationField from "./LocationField";
 import { MAX_WAYPOINTS } from "../hooks/useTrip";
 import { pointLetter, pointName } from "../utils/labels";
+import { useT } from "../i18n/context";
 
 // Letter badge matching the map pin: start ●, stops ○, destination ■
 export function PointBadge({ index, count, className = "" }) {
@@ -13,6 +14,13 @@ export function PointBadge({ index, count, className = "" }) {
       {pointLetter(index)}
     </span>
   );
+}
+
+// How an unfilled point is named in announcements ("start", "empty stop", …)
+function emptyPlace(t, index, count) {
+  if (index === 0) return t("waypoints.emptyFrom");
+  if (index === count - 1) return t("waypoints.emptyTo");
+  return t("waypoints.emptyStop");
 }
 
 function WaypointRow({
@@ -27,9 +35,10 @@ function WaypointRow({
   onMove,
   reduceMotion,
 }) {
+  const t = useT();
   const controls = useDragControls();
-  const name = pointName(index, count);
-  const place = waypoint.label.trim() || name.toLowerCase();
+  const name = pointName(t, index, count);
+  const place = waypoint.label.trim() || emptyPlace(t, index, count);
 
   return (
     <Reorder.Item
@@ -47,7 +56,7 @@ function WaypointRow({
         <button
           type="button"
           data-handle={waypoint.id}
-          aria-label={`Move ${place}. Use the up and down arrow keys`}
+          aria-label={t("waypoints.move", { place })}
           onPointerDown={(e) => controls.start(e)}
           onKeyDown={(e) => {
             if (e.key === "ArrowUp" || e.key === "ArrowDown") {
@@ -65,7 +74,7 @@ function WaypointRow({
         <LocationField
           id={`place-${waypoint.id}`}
           label={name}
-          placeholder={index === 0 || index === count - 1 ? "Town, address or place" : "Add a stop"}
+          placeholder={t(index === 0 || index === count - 1 ? "waypoints.placeholderEnd" : "waypoints.placeholderStop")}
           marker={<PointBadge index={index} count={count} />}
           value={waypoint.label}
           onTextChange={(text) => onTextChange(waypoint.id, text)}
@@ -77,7 +86,7 @@ function WaypointRow({
       {count > 2 && (
         <button
           type="button"
-          aria-label={`Remove ${place}`}
+          aria-label={t("waypoints.remove", { place })}
           onClick={() => onRemove(waypoint.id)}
           className="-mr-1.5 grid size-10 shrink-0 place-items-center rounded-plate text-ink-subtle hover:bg-surface-sunken hover:text-ink"
         >
@@ -103,6 +112,7 @@ function WaypointList({
   firstAction = null,
   lastAction = null,
 }) {
+  const t = useT();
   const reduceMotion = useReducedMotion();
   const listRef = useRef(null);
   const focusAfterMove = useRef(null);
@@ -124,13 +134,13 @@ function WaypointList({
     if (to < 0 || to >= count) return;
     focusAfterMove.current = id;
     onMove(id, delta);
-    const place = waypoints[from].label.trim() || "Empty stop";
-    setAnnouncement(`${place} moved to place ${to + 1} of ${count}`);
+    const place = waypoints[from].label.trim() || emptyPlace(t, from, count);
+    setAnnouncement(t("waypoints.moved", { place, pos: to + 1, count }));
   };
 
   return (
     <fieldset className="flex flex-col gap-2">
-      <legend className="sr-only">Route</legend>
+      <legend className="sr-only">{t("waypoints.legend")}</legend>
       <Reorder.Group
         ref={listRef}
         as="ol"
@@ -166,10 +176,10 @@ function WaypointList({
           className="-ml-1.5 inline-flex items-center gap-1.5 rounded-plate px-1.5 py-1 text-sm font-medium text-ink hover:bg-surface-sunken disabled:cursor-not-allowed disabled:text-ink-subtle disabled:hover:bg-transparent"
         >
           <TbPlus aria-hidden className="size-4" />
-          Add stop
+          {t("waypoints.add")}
         </button>
         {count >= MAX_WAYPOINTS && (
-          <span className="text-[13px] text-ink-subtle">Up to {MAX_WAYPOINTS} places</span>
+          <span className="text-[13px] text-ink-subtle">{t("waypoints.max", { n: MAX_WAYPOINTS })}</span>
         )}
       </div>
 

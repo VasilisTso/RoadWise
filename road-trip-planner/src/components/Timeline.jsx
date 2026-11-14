@@ -1,14 +1,15 @@
 import React from "react";
 import { DepartureFields } from "./TripSettings";
 import { PointBadge } from "./WaypointList";
-import { formatDuration, formatEuro, formatKm, formatTime } from "../utils/format";
+import { useI18n } from "../i18n/context";
 
 function LegMeta({ leg, index, count }) {
+  const { t, fmt } = useI18n();
   if (!leg) return null;
   return (
     <span className="num block text-[13px] text-ink-muted">
-      {count > 1 ? `Leg ${index + 1} · ` : ""}
-      {formatKm(leg.distanceKm)} · {formatDuration(leg.durationMin)}
+      {count > 1 ? `${t("timeline.leg", { n: index + 1 })} · ` : ""}
+      {fmt.km(leg.distanceKm)} · {fmt.duration(leg.durationMin)}
     </span>
   );
 }
@@ -25,6 +26,7 @@ function Timeline({
   onHoverToll,
   onSelectToll,
 }) {
+  const { t, fmt } = useI18n();
   const { events, departure, arrival, drivingMin, breakMin } = timeline;
   const points = result.waypoints.length;
   const legCount = result.legs.length;
@@ -35,7 +37,7 @@ function Timeline({
         {events.map((ev) => {
           const time = (
             <time dateTime={ev.time.toISOString()} className="timeline__time num">
-              {formatTime(ev.time, departure)}
+              {fmt.time(ev.time, departure)}
             </time>
           );
 
@@ -55,14 +57,19 @@ function Timeline({
                   onFocus={() => onHoverToll?.(ev.index)}
                   onBlur={() => onHoverToll?.(null)}
                   onClick={() => onSelectToll?.(ev.toll, ev.index)}
-                  aria-label={`${formatTime(ev.time, departure)}, toll ${ev.index + 1}: ${ev.toll.name}, ${formatEuro(fee)}. Show on map`}
+                  aria-label={t("timeline.tollLabel", {
+                    time: fmt.time(ev.time, departure),
+                    n: ev.index + 1,
+                    name: ev.toll.name,
+                    fee: fmt.euro(fee),
+                  })}
                 >
                   <span className="min-w-0">
                     <span className="block truncate text-ink">{ev.toll.name}</span>
                     <span className="block truncate text-[13px] text-ink-muted">{ev.toll.highway}</span>
                   </span>
                   <span className="num font-plate text-[15px] font-semibold text-ink">
-                    {formatEuro(fee)}
+                    {fmt.euro(fee)}
                   </span>
                 </button>
               </li>
@@ -70,7 +77,7 @@ function Timeline({
           }
 
           const heading =
-            ev.type === "depart" ? "Leave" : ev.type === "arrive" ? "Arrive" : "Stop";
+            t(ev.type === "depart" ? "timeline.leave" : ev.type === "arrive" ? "timeline.arrive" : "timeline.stop");
           return (
             <li key={`pt-${ev.point}`} className="timeline__item timeline__item--point">
               {time}
@@ -89,13 +96,14 @@ function Timeline({
 
       <div className="rounded-plate bg-surface-sunken px-3 py-2.5 text-[13px] text-ink-muted">
         <p className="num">
-          Driving {formatDuration(drivingMin)}
-          {breakMin > 0 && <> + breaks {formatDuration(breakMin)}</>}. Arrive{" "}
-          <strong className="font-semibold text-ink">{formatTime(arrival, departure)}</strong>.
+          {t("timeline.summaryDriving", { duration: fmt.duration(drivingMin) })}
+          {breakMin > 0 && t("timeline.summaryBreaks", { duration: fmt.duration(breakMin) })}
+          {t("timeline.summaryArrive")}
+          <strong className="font-semibold text-ink">{fmt.time(arrival, departure)}</strong>.
         </p>
         <p className="mt-1">
-          Estimated driving times, without live traffic.
-          {result.roundTrip && " One way only: the return depends on when you set off."}
+          {t("timeline.estimate")}
+          {result.roundTrip && t("timeline.oneWayOnly")}
         </p>
       </div>
 

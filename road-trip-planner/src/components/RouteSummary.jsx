@@ -3,33 +3,34 @@ import { TbCheck, TbCopy, TbPencil, TbShare } from "react-icons/tb";
 import AnimatedNumber from "./ui/AnimatedNumber";
 import { useRovingRadio } from "../hooks/useRovingRadio";
 import { routeTitle } from "../utils/labels";
-import { formatDuration, formatEuro, formatKm, formatTime, pluralize } from "../utils/format";
+import { useI18n } from "../i18n/context";
 
 const ROUTE_MODES = [false, true]; // avoidTolls
 
 // Short plain sentence on what the toll-free route trades: money vs time
-function tradeOff(withTolls, withoutTolls) {
+function tradeOff(t, fmt, withTolls, withoutTolls) {
   const saved = withTolls.totalCost - withoutTolls.totalCost;
   const extraMin = Math.round(withoutTolls.durationMin - withTolls.durationMin);
 
   const money =
     saved > 0.05
-      ? `saves ${formatEuro(saved)}`
+      ? t("tradeOff.saves", { amount: fmt.euro(saved) })
       : saved < -0.05
-        ? `costs ${formatEuro(-saved)} more`
-        : "costs the same";
+        ? t("tradeOff.costsMore", { amount: fmt.euro(-saved) })
+        : t("tradeOff.costsSame");
   const time =
     extraMin > 0
-      ? `takes ${formatDuration(extraMin)} longer`
+      ? t("tradeOff.longer", { duration: fmt.duration(extraMin) })
       : extraMin < 0
-        ? `is ${formatDuration(-extraMin)} faster`
-        : "takes the same time";
-  const joiner = (saved > 0.05) === (extraMin > 0) ? "but" : "and";
-  return `Toll-free ${money} ${joiner} ${time}.`;
+        ? t("tradeOff.faster", { duration: fmt.duration(-extraMin) })
+        : t("tradeOff.sameTime");
+  const joiner = t((saved > 0.05) === (extraMin > 0) ? "tradeOff.but" : "tradeOff.and");
+  return t("tradeOff.sentence", { money, joiner, time });
 }
 
 function RoutePlate({ option, kind, selected, radioProps }) {
-  const label = kind === "tolled" ? "With tolls" : "Toll-free";
+  const { t, fmt } = useI18n();
+  const label = t(kind === "tolled" ? "results.withTolls" : "results.tollFree");
   return (
     <button {...radioProps} className={`route-plate route-plate--${kind}`} data-selected={selected}>
       <span className="route-plate__head">
@@ -38,16 +39,16 @@ function RoutePlate({ option, kind, selected, radioProps }) {
       </span>
       <AnimatedNumber
         value={option.totalCost}
-        format={formatEuro}
+        format={fmt.euro}
         className="route-plate__price"
       />
       <span className="route-plate__meta num">
-        {formatDuration(option.durationMin)} · {formatKm(option.distanceKm)}
+        {fmt.duration(option.durationMin)} · {fmt.km(option.distanceKm)}
       </span>
       <span className="route-plate__meta num">
         {option.tolls.length === 0
-          ? "No toll booths"
-          : `${pluralize(option.tolls.length, "booth", "booths")} · ${formatEuro(option.tollCost)}`}
+          ? t("results.noBooths")
+          : `${t("results.booths", { n: option.tolls.length })} · ${fmt.euro(option.tollCost)}`}
       </span>
     </button>
   );
@@ -65,14 +66,22 @@ function useFlag() {
   return [on, flash];
 }
 
-function splitText(r) {
+function splitText(t, fmt, r) {
   return [
     `RoadWise · ${routeTitle(r.waypoints)}`,
-    `${formatKm(r.distanceKm)}, ${formatDuration(r.durationMin)}, ${
-      r.avoidTolls ? "toll-free" : "with tolls"
-    }, ${r.roundTrip ? "return" : "one way"}`,
-    `${r.fuelType === "ev" ? "Charging" : "Fuel"} ${formatEuro(r.energyCost)} + tolls ${formatEuro(r.tollCost)} = ${formatEuro(r.totalCost)}`,
-    r.passengers > 1 ? `${formatEuro(r.perPassenger)} each for ${r.passengers} people` : null,
+    t("share.textRoute", {
+      distance: fmt.km(r.distanceKm),
+      duration: fmt.duration(r.durationMin),
+      mode: t(r.avoidTolls ? "share.textTollFree" : "share.textWithTolls"),
+      trip: t(r.roundTrip ? "results.return" : "results.oneWay"),
+    }),
+    t("share.textCost", {
+      energy: t(r.fuelType === "ev" ? "cost.charging" : "cost.fuel"),
+      energyCost: fmt.euro(r.energyCost),
+      tollCost: fmt.euro(r.tollCost),
+      total: fmt.euro(r.totalCost),
+    }),
+    r.passengers > 1 ? t("share.textEach", { amount: fmt.euro(r.perPassenger), n: r.passengers }) : null,
     window.location.href,
   ]
     .filter(Boolean)
@@ -81,6 +90,7 @@ function splitText(r) {
 
 // Results header: route, the total at display size, per person, and the route choice.
 export function RouteHeader({ result, comparison, hasAlternative, timeline, onSelectRouteMode, onEdit }) {
+  const { t, fmt } = useI18n();
   const radioProps = useRovingRadio(ROUTE_MODES, result.avoidTolls, onSelectRouteMode);
   const { withTolls, withoutTolls } = comparison;
   const stops = result.waypoints.length - 2;
@@ -100,10 +110,11 @@ export function RouteHeader({ result, comparison, hasAlternative, timeline, onSe
               ))}
           </h2>
           <p className="num mt-0.5 text-[13px] text-ink-muted">
-            {formatKm(result.distanceKm)} · {formatDuration(result.durationMin)} ·{" "}
-            {result.roundTrip ? "return" : "one way"}
-            {stops > 0 && ` · ${pluralize(stops, "stop", "stops")}`}
-            {timeline && ` · arrive ${formatTime(timeline.arrival, timeline.departure)}`}
+            {fmt.km(result.distanceKm)} · {fmt.duration(result.durationMin)} ·{" "}
+            {t(result.roundTrip ? "results.return" : "results.oneWay")}
+            {stops > 0 && ` · ${t("results.stops", { n: stops })}`}
+            {timeline &&
+              ` · ${t("results.arrive", { time: fmt.time(timeline.arrival, timeline.departure) })}`}
           </p>
         </div>
         <button
@@ -112,15 +123,15 @@ export function RouteHeader({ result, comparison, hasAlternative, timeline, onSe
           className="inline-flex shrink-0 items-center gap-1.5 rounded-plate border border-line px-2.5 py-1.5 text-[13px] font-medium text-ink hover:bg-surface-sunken"
         >
           <TbPencil aria-hidden className="size-4" />
-          Edit trip
+          {t("results.editTrip")}
         </button>
       </div>
 
       <div>
-        <div className="text-[13px] text-ink-muted">Trip cost</div>
+        <div className="text-[13px] text-ink-muted">{t("results.tripCost")}</div>
         <AnimatedNumber
           value={result.totalCost}
-          format={formatEuro}
+          format={fmt.euro}
           className="block font-plate text-[3.25rem] font-semibold leading-none tracking-[-0.02em] text-ink"
         />
         <p className="mt-2 text-[15px] text-ink-muted">
@@ -128,13 +139,13 @@ export function RouteHeader({ result, comparison, hasAlternative, timeline, onSe
             <>
               <AnimatedNumber
                 value={result.perPassenger}
-                format={formatEuro}
+                format={fmt.euro}
                 className="font-semibold text-ink"
               />{" "}
-              each, split {result.passengers} ways
+              {t("results.eachSuffix", { n: result.passengers })}
             </>
           ) : (
-            "One person paying. Add people to split it."
+            t("results.onePerson")
           )}
         </p>
       </div>
@@ -142,7 +153,7 @@ export function RouteHeader({ result, comparison, hasAlternative, timeline, onSe
       {hasAlternative && (
         <div>
           <div id="route-choice-label" className="field-label">
-            Route
+            {t("results.route")}
           </div>
           <div role="radiogroup" aria-labelledby="route-choice-label" className="grid grid-cols-2 gap-2.5">
             <RoutePlate
@@ -158,7 +169,7 @@ export function RouteHeader({ result, comparison, hasAlternative, timeline, onSe
               radioProps={radioProps(true, 1)}
             />
           </div>
-          <p className="mt-2.5 text-[13px] text-ink-muted">{tradeOff(withTolls, withoutTolls)}</p>
+          <p className="mt-2.5 text-[13px] text-ink-muted">{tradeOff(t, fmt, withTolls, withoutTolls)}</p>
         </div>
       )}
     </div>
@@ -166,12 +177,13 @@ export function RouteHeader({ result, comparison, hasAlternative, timeline, onSe
 }
 
 export function ShareActions({ result }) {
+  const { t, fmt } = useI18n();
   const [copied, flashCopied] = useFlag();
   const [linked, flashLinked] = useFlag();
 
   const copySplit = async () => {
     try {
-      await navigator.clipboard.writeText(splitText(result));
+      await navigator.clipboard.writeText(splitText(t, fmt, result));
       flashCopied();
     } catch (err) {
       console.error("Copy failed:", err);
@@ -200,14 +212,14 @@ export function ShareActions({ result }) {
     <div className="grid grid-cols-2 gap-2.5">
       <button type="button" onClick={copySplit} className="btn-secondary">
         {copied ? <TbCheck aria-hidden className="size-4 text-success" /> : <TbCopy aria-hidden className="size-4" />}
-        {copied ? "Copied" : "Copy cost split"}
+        {copied ? t("share.copied") : t("share.copy")}
       </button>
       <button type="button" onClick={shareLink} className="btn-secondary">
         {linked ? <TbCheck aria-hidden className="size-4 text-success" /> : <TbShare aria-hidden className="size-4" />}
-        {linked ? "Link copied" : "Share link"}
+        {linked ? t("share.linkCopied") : t("share.link")}
       </button>
       <span role="status" className="sr-only">
-        {copied ? "Cost split copied" : linked ? "Link copied" : ""}
+        {copied ? t("share.copiedStatus") : linked ? t("share.linkCopied") : ""}
       </span>
     </div>
   );

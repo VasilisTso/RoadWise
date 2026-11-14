@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import L from "leaflet";
-import { escapeHtml, formatEuro } from "../utils/format";
+import { escapeHtml } from "../utils/format";
+import { useI18n } from "../i18n/context";
 import { DESKTOP_QUERY } from "../hooks/useMediaQuery";
 import { pointLetter } from "../utils/labels";
 
@@ -31,7 +32,7 @@ function enterAttrs(delayMs) {
 }
 
 // Numbered rate plate for each toll station on the route
-function createTollIcon(index, fee, delayMs) {
+function createTollIcon(index, fee, feeText, delayMs) {
   return L.divIcon({
     className: "rw-toll-marker",
     iconSize: [64, 26],
@@ -39,7 +40,7 @@ function createTollIcon(index, fee, delayMs) {
     popupAnchor: [0, -14],
     html: `<div class="rw-toll ${tollSizeClass(fee)}${enterAttrs(delayMs)}"><span class="rw-toll__num">${
       index + 1
-    }</span><span class="rw-toll__fee">${escapeHtml(formatEuro(fee))}</span></div>`,
+    }</span><span class="rw-toll__fee">${escapeHtml(feeText)}</span></div>`,
   });
 }
 
@@ -84,15 +85,15 @@ function drawIn(line, map) {
   return finish;
 }
 
-const tollPopup = (toll, idx) => `<div class="rw-popup">
-  <div class="rw-popup__meta">${idx + 1} · ${escapeHtml(toll.highway || "Toll booth")}</div>
+const tollPopup = (toll, idx, t, fmt) => `<div class="rw-popup">
+  <div class="rw-popup__meta">${idx + 1} · ${escapeHtml(toll.highway || t("tolls.booth"))}</div>
   <div class="rw-popup__title">${escapeHtml(toll.name)}</div>
-  <div class="rw-popup__row"><span>Car</span><strong>${formatEuro(toll.car)}</strong></div>
-  <div class="rw-popup__row"><span>Motorbike</span><strong>${formatEuro(toll.bike)}</strong></div>
+  <div class="rw-popup__row"><span>${escapeHtml(t("settings.car"))}</span><strong>${escapeHtml(fmt.euro(toll.car))}</strong></div>
+  <div class="rw-popup__row"><span>${escapeHtml(t("settings.bike"))}</span><strong>${escapeHtml(fmt.euro(toll.bike))}</strong></div>
 </div>`;
 
 const endpointPopup = (label, name) =>
-  `<div class="rw-popup__label">${label}</div><div class="rw-popup__title">${escapeHtml(name)}</div>`;
+  `<div class="rw-popup__label">${escapeHtml(label)}</div><div class="rw-popup__title">${escapeHtml(name)}</div>`;
 
 /**
  * Full-bleed map. `insets` are the px the floating sheet covers, so the route is
@@ -110,6 +111,7 @@ function MapView({
   onSelectRouteMode,
   onHoverToll,
 }) {
+  const { t, fmt } = useI18n();
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const tilesRef = useRef(null);
@@ -180,9 +182,10 @@ function MapView({
         className: animateIn ? "rw-alt-line rw-enter-late" : "rw-alt-line",
       })
         .bindTooltip(
-          `Switch to ${alternativeRoute.avoidTolls ? "toll-free" : "with tolls"}: ${formatEuro(
-            alternativeRoute.totalCost
-          )}`,
+          t("map.switchTo", {
+            mode: t(alternativeRoute.avoidTolls ? "share.textTollFree" : "share.textWithTolls"),
+            amount: fmt.euro(alternativeRoute.totalCost),
+          }),
           { sticky: true }
         )
         .on("click", () => callbacksRef.current.onSelectRouteMode?.(alternativeRoute.avoidTolls))
@@ -217,7 +220,8 @@ function MapView({
     const count = pointIdx.length;
     const pointMarkers = pointIdx.map((vertex, i) => {
       const variant = i === 0 ? "start" : i === count - 1 ? "end" : "stop";
-      const role = i === 0 ? "Start" : i === count - 1 ? "Destination" : `Stop ${i}`;
+      const role =
+        i === 0 ? t("map.start") : i === count - 1 ? t("map.destination") : t("map.stopN", { n: i });
       return L.marker(route.coords[vertex], {
         icon: createEndpointIcon(pointLetter(i), variant, delayFor(vertex / last)),
         zIndexOffset: 900,
@@ -231,12 +235,12 @@ function MapView({
     tollMarkersRef.current = route.tolls.map((toll, idx) => {
       const fee = toll[vehicle] ?? toll.car;
       return L.marker([toll.lat, toll.lng], {
-        icon: createTollIcon(idx, fee, delayFor(toll.routeOrder / last)),
+        icon: createTollIcon(idx, fee, fmt.euro(fee), delayFor(toll.routeOrder / last)),
         zIndexOffset: 1000,
         keyboard: false, // the toll list is the keyboard path to each booth
-        title: `${toll.name}: ${formatEuro(fee)}`,
+        title: `${toll.name}: ${fmt.euro(fee)}`,
       })
-        .bindPopup(tollPopup(toll, idx))
+        .bindPopup(tollPopup(toll, idx, t, fmt))
         .on("mouseover", () => callbacksRef.current.onHoverToll?.(idx))
         .on("mouseout", () => callbacksRef.current.onHoverToll?.(null))
         .addTo(map);
@@ -250,7 +254,7 @@ function MapView({
       tollMarkersRef.current.forEach((m) => m.remove());
       tollMarkersRef.current = [];
     };
-  }, [route, alternativeRoute, theme]);
+  }, [route, alternativeRoute, theme, t, fmt]);
 
   // Highlight the plate for the toll row under the pointer / focus
   useEffect(() => {

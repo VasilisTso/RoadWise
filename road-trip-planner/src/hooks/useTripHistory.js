@@ -85,11 +85,13 @@ export function useTripHistory() {
 }
 
 // "Athens → Thessaloniki", "Athens → Thessaloniki via Delphi", "… via 2 stops"
-export function tripTitle(trip) {
+export function tripTitle(trip, t) {
   if (trip.name) return trip.name;
   const wps = trip.waypoints;
-  const ends = `${shortPlace(wps[0].label)} → ${shortPlace(wps[wps.length - 1].label)}`;
+  const route = `${shortPlace(wps[0].label)} → ${shortPlace(wps[wps.length - 1].label)}`;
   const stops = wps.length - 2;
-  if (stops === 0) return ends;
-  return stops === 1 ? `${ends} via ${shortPlace(wps[1].label)}` : `${ends} via ${stops} stops`;
+  if (stops === 0) return route;
+  return stops === 1
+    ? t("history.via", { route, place: shortPlace(wps[1].label) })
+    : t("history.viaStops", { route, n: stops });
 }
