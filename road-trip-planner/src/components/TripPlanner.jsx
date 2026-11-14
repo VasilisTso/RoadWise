@@ -75,7 +75,7 @@ function TripPlanner({
       <div className="bg-slate-900 text-white px-5 py-3.5 flex items-center justify-between border-b border-slate-800">
         <div className="flex items-center gap-2">
           <FaCompass className="text-amber-400 text-base" />
-          <h2 className="text-xs font-mono-num uppercase tracking-widest font-bold">
+          <h2 className="text-xs font-mono-num font-bold">
             Trip Parameters
           </h2>
         </div>
@@ -118,7 +118,7 @@ function TripPlanner({
               className="mx-2 px-2.5 py-1 rounded-full bg-slate-100 hover:bg-slate-900 text-slate-600 hover:text-amber-400 border border-slate-200/80 text-xs font-mono-num font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
             >
               <FaExchangeAlt className="rotate-90 text-[10px]" />
-              <span className="text-[10px] uppercase tracking-wider">Swap</span>
+              <span className="text-[10px]">Swap</span>
             </button>
             <div className="h-px bg-slate-100 flex-1" />
           </div>
@@ -143,7 +143,7 @@ function TripPlanner({
         <div className="pt-3 border-t border-slate-100">
           <label
             htmlFor="vehicle"
-            className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2"
+            className="block text-xs font-bold text-slate-500 mb-2"
           >
             Vehicle Classification
           </label>
@@ -238,7 +238,7 @@ function TripPlanner({
                   d="M4 12a8 8 0 018-8v8H4z"
                 />
               </svg>
-              <span className="font-mono-num text-xs uppercase tracking-wider">
+              <span className="font-mono-num text-xs">
                 Computing Both Routes...
               </span>
             </>

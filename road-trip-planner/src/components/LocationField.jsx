@@ -21,7 +21,7 @@ function LocationField({
       <div className="flex items-center justify-between mb-1.5">
         <label
           htmlFor={id}
-          className="block text-xs font-bold uppercase tracking-wider text-slate-500"
+          className="block text-xs font-bold text-slate-500"
         >
           {label}
         </label>

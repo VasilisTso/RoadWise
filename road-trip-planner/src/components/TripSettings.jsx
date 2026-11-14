@@ -10,7 +10,7 @@ function TripSettings({ settings, onChange }) {
         <div>
           <label
             htmlFor="fuel-price"
-            className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5"
+            className="flex items-center gap-1.5 text-xs font-bold text-slate-500 mb-1.5"
           >
             <FaGasPump className="text-slate-400 text-[11px]" />
             <span>Fuel Price</span>
@@ -35,7 +35,7 @@ function TripSettings({ settings, onChange }) {
         <div>
           <label
             htmlFor="consumption"
-            className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5"
+            className="flex items-center gap-1.5 text-xs font-bold text-slate-500 mb-1.5"
           >
             <FaTachometerAlt className="text-slate-400 text-[11px]" />
             <span>Consumption</span>
@@ -62,7 +62,7 @@ function TripSettings({ settings, onChange }) {
         <div>
           <label
             htmlFor="passengers"
-            className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5"
+            className="flex items-center gap-1.5 text-xs font-bold text-slate-500 mb-1.5"
           >
             <FaUsers className="text-slate-400 text-[11px]" />
             <span>Passengers</span>
@@ -84,7 +84,7 @@ function TripSettings({ settings, onChange }) {
         </div>
 
         <div>
-          <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+          <label className="flex items-center gap-1.5 text-xs font-bold text-slate-500 mb-1.5">
             <FaSyncAlt className="text-slate-400 text-[11px]" />
             <span>Trip Leg</span>
           </label>
@@ -118,7 +118,7 @@ function TripSettings({ settings, onChange }) {
       <div>
         <label
           htmlFor="route-option"
-          className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5"
+          className="flex items-center gap-1.5 text-xs font-bold text-slate-500 mb-1.5"
         >
           <FaRoad className="text-slate-400 text-[11px]" />
           <span>Active Route Mode</span>

@@ -81,18 +81,18 @@ function RouteSummary({ result, comparison, onSelectRouteMode }) {
       <div className="bg-slate-900 text-white px-5 py-3.5 flex items-center justify-between border-b border-slate-800">
         <div className="flex items-center gap-2">
           <FaReceipt className="text-amber-400 text-sm" />
-          <h2 className="text-xs font-mono-num uppercase tracking-widest font-bold">
+          <h2 className="text-xs font-mono-num font-bold">
             Trip Telemetry &amp; Receipt
           </h2>
         </div>
         <div className="flex items-center gap-1.5">
           {result.roundTrip && (
-            <span className="text-[10px] font-mono-num uppercase px-2 py-0.5 rounded font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+            <span className="text-[10px] font-mono-num px-2 py-0.5 rounded font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
               2x Round-Trip
             </span>
           )}
           <span
-            className={`text-[10px] font-mono-num uppercase px-2 py-0.5 rounded font-bold ${
+            className={`text-[10px] font-mono-num px-2 py-0.5 rounded font-bold ${
               result.avoidTolls
                 ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
                 : "bg-blue-500/20 text-blue-300 border border-blue-500/30"
@@ -106,7 +106,7 @@ function RouteSummary({ result, comparison, onSelectRouteMode }) {
       <div className="p-5 space-y-5">
         <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-3.5 flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <span className="block text-[10px] font-mono-num uppercase tracking-wider text-slate-400">
+            <span className="block text-[10px] font-mono-num text-slate-400">
               Origin
             </span>
             <p className="text-xs font-bold text-slate-900 truncate mt-0.5" title={result.start}>
@@ -119,7 +119,7 @@ function RouteSummary({ result, comparison, onSelectRouteMode }) {
           </div>
 
           <div className="min-w-0 flex-1 text-right">
-            <span className="block text-[10px] font-mono-num uppercase tracking-wider text-slate-400">
+            <span className="block text-[10px] font-mono-num text-slate-400">
               Destination
             </span>
             <p className="text-xs font-bold text-slate-900 truncate mt-0.5" title={result.end}>
@@ -131,7 +131,7 @@ function RouteSummary({ result, comparison, onSelectRouteMode }) {
         {withTolls && withoutTolls && (
           <div className="space-y-2.5">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+              <span className="font-bold text-slate-500 flex items-center gap-1.5">
                 <FaBalanceScale className="text-slate-400" />
                 <span>Side-by-Side Route Comparison</span>
               </span>
@@ -149,7 +149,7 @@ function RouteSummary({ result, comparison, onSelectRouteMode }) {
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-mono-num font-bold uppercase text-blue-700">
+                  <span className="text-[11px] font-mono-num font-bold text-blue-700">
                     With Tolls
                   </span>
                   <span className="w-2 h-2 rounded-full bg-blue-600" />
@@ -178,7 +178,7 @@ function RouteSummary({ result, comparison, onSelectRouteMode }) {
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-mono-num font-bold uppercase text-amber-700">
+                  <span className="text-[11px] font-mono-num font-bold text-amber-700">
                     Toll-Free
                   </span>
                   <span className="w-2 h-2 rounded-full bg-amber-500" />
@@ -253,7 +253,7 @@ function RouteSummary({ result, comparison, onSelectRouteMode }) {
 
         <div className="bg-slate-900 text-white rounded-xl p-4 grid grid-cols-2 gap-4 items-center">
           <div>
-            <span className="text-[10px] font-mono-num uppercase tracking-widest text-slate-400 block">
+            <span className="text-[10px] font-mono-num text-slate-400 block">
               Total Trip Cost
             </span>
             <span className="text-2xl font-mono-num font-extrabold text-white mt-0.5 block">
@@ -262,7 +262,7 @@ function RouteSummary({ result, comparison, onSelectRouteMode }) {
           </div>
 
           <div className="border-l border-slate-800 pl-4">
-            <span className="text-[10px] font-mono-num uppercase tracking-widest text-amber-400 block">
+            <span className="text-[10px] font-mono-num text-amber-400 block">
               Per Passenger ({result.passengers} {result.passengers === 1 ? "PAX" : "PAX"})
             </span>
             <span className="text-2xl font-mono-num font-extrabold text-amber-400 mt-0.5 block">

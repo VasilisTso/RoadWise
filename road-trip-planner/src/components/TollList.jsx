@@ -12,7 +12,7 @@ function TollList({ tolls, vehicle = "car", roundTrip = false, onSelectToll }) {
       <div className="bg-slate-50 px-5 py-3.5 border-b border-slate-200/90 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <FaRoad className="text-slate-700 text-sm" />
-          <h2 className="text-xs font-mono-num uppercase tracking-widest font-bold text-slate-900">
+          <h2 className="text-xs font-mono-num font-bold text-slate-900">
             Ordered Toll Ledger
           </h2>
         </div>
@@ -35,7 +35,7 @@ function TollList({ tolls, vehicle = "car", roundTrip = false, onSelectToll }) {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/60 text-[11px] font-mono-num uppercase tracking-wider text-slate-500">
+              <tr className="border-b border-slate-200 bg-slate-50/60 text-[11px] font-mono-num text-slate-500">
                 <th className="py-2.5 pl-5 pr-2 w-10">#</th>
                 <th className="py-2.5 px-3">Plaza &amp; Corridor</th>
                 <th
@@ -74,7 +74,7 @@ function TollList({ tolls, vehicle = "car", roundTrip = false, onSelectToll }) {
                       <div className="text-[10px] font-mono-num text-slate-400 mt-0.5 flex items-center gap-1.5">
                         <span>{toll.highway}</span>
                         {toll.type && toll.type !== "mainline" && (
-                          <span className="uppercase px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                          <span className="px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
                             {toll.type}
                           </span>
                         )}

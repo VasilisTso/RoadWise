@@ -18,7 +18,7 @@ const Header = () => {
             <h1 className="text-lg font-extrabold tracking-tight text-white">
               ROAD<span className="text-amber-400">WISE</span>
             </h1>
-            <span className="hidden sm:inline-block text-xs font-mono-num uppercase tracking-widest text-slate-400 border-l border-slate-800 pl-2.5">
+            <span className="hidden sm:inline-block text-xs font-mono-num text-slate-400 border-l border-slate-800 pl-2.5">
               GR // Toll &amp; Fuel Telemetry
             </span>
           </div>

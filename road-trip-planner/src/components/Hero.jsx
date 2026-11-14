@@ -10,7 +10,7 @@ const Hero = () => {
     >
       <div>
         <div className="flex items-center gap-2">
-          <span className="text-[11px] font-mono-num uppercase tracking-widest font-semibold text-amber-600 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded">
+          <span className="text-[11px] font-mono-num font-semibold text-amber-600 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded">
             Route &amp; Expense Dispatch
           </span>
         </div>

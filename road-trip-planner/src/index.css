@@ -1,50 +1,394 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Commissioner:wght@400..700&family=Fira+Sans+Condensed:wght@500;600;700&display=swap");
 @import "tailwindcss";
 
+/*
+ * RoadWise design tokens.
+ * Raw values live on :root / [data-theme="dark"]; @theme exposes them to Tailwind
+ * (bg-surface, text-ink, text-tolled, …) so utilities follow the active theme.
+ * Theme resolution: data-theme="light" | "dark" on <html>; with no attribute, the OS setting.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Warm neutral surfaces */
+  --rw-ground: #f2f0eb;
+  --rw-surface: #fbfaf7;
+  --rw-surface-raised: #ffffff;
+  --rw-surface-sunken: #e9e6df;
+  --rw-line: #dcd7cd;
+  --rw-line-strong: #b9b2a5;
+
+  /* Ink */
+  --rw-ink: #1d1c19;
+  --rw-ink-muted: #5b574f;
+  --rw-ink-subtle: #6f6a60;
+  --rw-ink-inverse: #fbfaf7;
+
+  /* Route roles: Greek motorway-sign green = tolled, warm ochre = toll-free */
+  --rw-tolled: #00703c;
+  --rw-tolled-strong: #005a30;
+  --rw-tolled-soft: #e1efe6;
+  --rw-tolled-line: #00824a;
+  --rw-free: #8a5800;
+  --rw-free-strong: #6e4600;
+  --rw-free-soft: #f6ebd6;
+  --rw-free-line: #c98a1b;
+
+  /* Semantic states */
+  --rw-success: #1f7a45;
+  --rw-success-soft: #e2f1e7;
+  --rw-warn: #8f5b00;
+  --rw-warn-soft: #fbefd4;
+  --rw-danger: #b3261e;
+  --rw-danger-soft: #fae3e0;
+
+  --rw-focus: #1d5fd1;
+  --rw-selection: #cfe5d7;
+  --rw-shadow: 30 26 20;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --rw-ground: #151413;
+  --rw-surface: #1d1c1a;
+  --rw-surface-raised: #262422;
+  --rw-surface-sunken: #121110;
+  --rw-line: #36332f;
+  --rw-line-strong: #4d4943;
+  --rw-ink: #f1eee8;
+  --rw-ink-muted: #b8b2a7;
+  --rw-ink-subtle: #a19a8e;
+  --rw-ink-inverse: #1d1c19;
+  --rw-tolled: #4cc485;
+  --rw-tolled-strong: #7ad8a5;
+  --rw-tolled-soft: #12301f;
+  --rw-tolled-line: #36b273;
+  --rw-free: #e2a947;
+  --rw-free-strong: #f0c374;
+  --rw-free-soft: #3a2b12;
+  --rw-free-line: #e09a2a;
+  --rw-success: #5cc98a;
+  --rw-success-soft: #143222;
+  --rw-warn: #e8b453;
+  --rw-warn-soft: #3a2c10;
+  --rw-danger: #f08b80;
+  --rw-danger-soft: #3d1a17;
+  --rw-focus: #7aa7ff;
+  --rw-selection: #24503a;
+  --rw-shadow: 0 0 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --rw-ground: #151413;
+    --rw-surface: #1d1c1a;
+    --rw-surface-raised: #262422;
+    --rw-surface-sunken: #121110;
+    --rw-line: #36332f;
+    --rw-line-strong: #4d4943;
+    --rw-ink: #f1eee8;
+    --rw-ink-muted: #b8b2a7;
+    --rw-ink-subtle: #a19a8e;
+    --rw-ink-inverse: #1d1c19;
+    --rw-tolled: #4cc485;
+    --rw-tolled-strong: #7ad8a5;
+    --rw-tolled-soft: #12301f;
+    --rw-tolled-line: #36b273;
+    --rw-free: #e2a947;
+    --rw-free-strong: #f0c374;
+    --rw-free-soft: #3a2b12;
+    --rw-free-line: #e09a2a;
+    --rw-success: #5cc98a;
+    --rw-success-soft: #143222;
+    --rw-warn: #e8b453;
+    --rw-warn-soft: #3a2c10;
+    --rw-danger: #f08b80;
+    --rw-danger-soft: #3d1a17;
+    --rw-focus: #7aa7ff;
+    --rw-selection: #24503a;
+    --rw-shadow: 0 0 0;
+  }
+}
+
+@theme inline {
+  --font-sans: "Commissioner", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-plate: "Fira Sans Condensed", "Commissioner", ui-sans-serif, sans-serif;
+
+  --color-ground: var(--rw-ground);
+  --color-surface: var(--rw-surface);
+  --color-surface-raised: var(--rw-surface-raised);
+  --color-surface-sunken: var(--rw-surface-sunken);
+  --color-line: var(--rw-line);
+  --color-line-strong: var(--rw-line-strong);
+
+  --color-ink: var(--rw-ink);
+  --color-ink-muted: var(--rw-ink-muted);
+  --color-ink-subtle: var(--rw-ink-subtle);
+  --color-ink-inverse: var(--rw-ink-inverse);
+
+  --color-tolled: var(--rw-tolled);
+  --color-tolled-strong: var(--rw-tolled-strong);
+  --color-tolled-soft: var(--rw-tolled-soft);
+  --color-tolled-line: var(--rw-tolled-line);
+  --color-free: var(--rw-free);
+  --color-free-strong: var(--rw-free-strong);
+  --color-free-soft: var(--rw-free-soft);
+  --color-free-line: var(--rw-free-line);
+
+  --color-success: var(--rw-success);
+  --color-success-soft: var(--rw-success-soft);
+  --color-warn: var(--rw-warn);
+  --color-warn-soft: var(--rw-warn-soft);
+  --color-danger: var(--rw-danger);
+  --color-danger-soft: var(--rw-danger-soft);
+  --color-focus: var(--rw-focus);
+
+  --radius-plate: 6px;
+  --radius-sheet: 16px;
+
+  --shadow-sheet: 0 12px 32px -8px rgb(var(--rw-shadow) / 0.22), 0 2px 6px rgb(var(--rw-shadow) / 0.08);
+  --shadow-marker: 0 2px 6px rgb(var(--rw-shadow) / 0.28);
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ---------- Base ---------- */
+
+*,
 *::before,
 *::after {
   box-sizing: border-box;
 }
 
+html {
+  background-color: var(--rw-ground);
+}
+
 body {
-  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
   margin: 0;
-  padding: 0;
-  background-color: #f4f5f7;
-  background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
-  background-size: 24px 24px;
-  color: #0f172a;
+  font-family: var(--font-sans);
+  font-size: 15px;
   line-height: 1.5;
+  background-color: var(--rw-ground);
+  color: var(--rw-ink);
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
+::selection {
+  background: var(--rw-selection);
+  color: var(--rw-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--rw-focus);
+  outline-offset: 2px;
+}
+
+input,
+textarea {
+  caret-color: var(--rw-tolled);
+}
+
+a {
+  text-underline-offset: 0.18em;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--rw-line-strong) transparent;
+}
+
+/* Numbers: tabular figures in the UI face, never monospace */
+.num {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+/* Legacy alias kept until Phase 2 restyles the components */
 .font-mono-num {
-  font-family: "JetBrains Mono", monospace;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
 }
 
-/* Custom sleek Leaflet popup styling */
+/* ---------- Leaflet ---------- */
+
+.leaflet-container {
+  font-family: var(--font-sans);
+  background: var(--rw-surface-sunken);
+}
+
 .leaflet-popup-content-wrapper {
-  background: #0f172a !important;
-  color: #f8fafc !important;
-  border-radius: 10px !important;
-  padding: 2px !important;
-  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.4) !important;
-  border: 1px solid #334155 !important;
+  background: var(--rw-surface-raised);
+  color: var(--rw-ink);
+  border-radius: var(--radius-plate);
+  border: 1px solid var(--rw-line);
+  box-shadow: var(--shadow-sheet);
 }
 
 .leaflet-popup-tip {
-  background: #0f172a !important;
+  background: var(--rw-surface-raised);
 }
 
 .leaflet-popup-content {
-  margin: 10px 14px !important;
-  font-family: "Plus Jakarta Sans", sans-serif !important;
-  font-size: 13px !important;
-  line-height: 1.5 !important;
+  margin: 10px 14px;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
-.leaflet-container {
-  font-family: "Plus Jakarta Sans", sans-serif !important;
+.leaflet-container a.leaflet-popup-close-button {
+  color: var(--rw-ink-subtle);
+}
+
+.leaflet-tooltip {
+  background: var(--rw-surface-raised);
+  color: var(--rw-ink);
+  border: 1px solid var(--rw-line);
+  box-shadow: var(--shadow-marker);
+  font-size: 12px;
+}
+
+.leaflet-control-attribution {
+  background: color-mix(in srgb, var(--rw-surface) 85%, transparent) !important;
+  color: var(--rw-ink-muted);
+}
+
+.leaflet-control-attribution a {
+  color: var(--rw-ink-muted);
+}
+
+.leaflet-bar a {
+  background: var(--rw-surface-raised);
+  color: var(--rw-ink);
+  border-bottom-color: var(--rw-line);
+}
+
+.leaflet-bar a:hover {
+  background: var(--rw-surface);
+}
+
+/* ---------- Map markers ---------- */
+
+/* Endpoint pin: A / B (and later numbered stops) */
+.rw-pin {
+  width: 26px;
+  height: 26px;
+  border-radius: 9999px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-plate);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--rw-ink-inverse);
+  background: var(--rw-ink);
+  border: 2px solid var(--rw-surface-raised);
+  box-shadow: var(--shadow-marker);
+}
+
+.rw-pin--start {
+  background: var(--rw-ink);
+}
+
+.rw-pin--end {
+  background: var(--rw-ink);
+  border-radius: 6px;
+}
+
+/* Toll marker: a small posted rate plate. Size follows a fixed price ramp. */
+.rw-toll {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: stretch;
+  white-space: nowrap;
+  font-family: var(--font-plate);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  background: var(--rw-surface-raised);
+  color: var(--rw-ink);
+  border: 1.5px solid var(--rw-tolled);
+  border-radius: var(--radius-plate);
+  box-shadow: var(--shadow-marker);
+  overflow: hidden;
+  font-size: 11px;
+  transition: transform 160ms var(--ease-out-expo), box-shadow 160ms var(--ease-out-expo);
+}
+
+.rw-toll__num {
+  display: grid;
+  place-items: center;
+  padding: 0 4px;
+  background: var(--rw-tolled);
+  color: var(--rw-ink-inverse);
+  font-size: 0.85em;
+  font-weight: 700;
+}
+
+.rw-toll__fee {
+  padding: 3px 5px;
+}
+
+.rw-toll--md {
+  font-size: 12px;
+}
+
+.rw-toll--lg {
+  font-size: 13.5px;
+  border-width: 2px;
+}
+
+.rw-toll.is-active {
+  transform: translate(-50%, -50%) scale(1.12);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--rw-tolled) 30%, transparent), var(--shadow-marker);
+}
+
+/* Popup content for a toll plate */
+.rw-popup {
+  min-width: 160px;
+}
+
+.rw-popup__meta {
+  font-size: 12px;
+  color: var(--rw-ink-muted);
+}
+
+.rw-popup__title {
+  font-weight: 600;
+  margin: 2px 0 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--rw-line);
+}
+
+.rw-popup__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.rw-popup__row strong {
+  font-family: var(--font-plate);
+  font-weight: 600;
+}
+
+.rw-popup__label {
+  font-size: 12px;
+  color: var(--rw-ink-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
